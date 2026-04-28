@@ -44,10 +44,6 @@ app.get('/bare-transport.mjs', (req, res) => {
 });
 console.log('  bare-transport: /bare-transport.mjs');
 
-// ── UV is already in public/uv/ (built from source) ─────────────
-// Service-Worker-Allowed header for uv.sw.js (scope=/service/)
-app.use('/uv/', allowSW, express.static(path.join(__dirname, 'public', 'uv')));
-
 // ── Static public dir ────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 

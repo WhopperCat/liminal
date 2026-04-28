@@ -63,8 +63,23 @@ async function initProxy() {
     const { ScramjetController } = await import('/scramjet/scramjet.bundle.js');
 
     setHint('[3/5] Registering service worker…');
-    await navigator.serviceWorker.register('/scramjet/scramjet.all.js', { scope: '/scramjet/' });
-    await navigator.serviceWorker.ready;
+    // Clear any stale/broken SW registrations from previous attempts
+    const oldRegs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(oldRegs.map(r => r.unregister()));
+
+    const swReg = await navigator.serviceWorker.register('/scramjet/scramjet.all.js', { scope: '/scramjet/' });
+
+    // Wait for this specific SW to activate (with timeout for diagnostics)
+    await new Promise((resolve, reject) => {
+      if (swReg.active) { resolve(); return; }
+      const sw = swReg.installing || swReg.waiting;
+      if (!sw) { reject(new Error('SW not installing after register')); return; }
+      const t = setTimeout(() => reject(new Error('SW install timed out after 10s')), 10000);
+      sw.addEventListener('statechange', function () {
+        if (this.state === 'activated') { clearTimeout(t); resolve(); }
+        if (this.state === 'redundant') { clearTimeout(t); reject(new Error('SW install failed (redundant)')); }
+      });
+    });
 
     setHint('[4/5] Setting up network transport…');
     const wispUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/wisp/';

@@ -1,14 +1,5 @@
 /* ── Liminal Axis — app.js ───────────────────────────────────────── */
 
-// ── Settings ─────────────────────────────────────────────────────
-const STORE_KEY = 'liminal-engine';
-let activeEngine = localStorage.getItem(STORE_KEY) || 'scramjet';
-
-function saveEngine(e) {
-  activeEngine = e;
-  localStorage.setItem(STORE_KEY, e);
-}
-
 // ── DOM refs ──────────────────────────────────────────────────────
 const searchForm    = document.getElementById('searchForm');
 const searchInput   = document.getElementById('searchInput');
@@ -16,8 +7,6 @@ const searchHint    = document.getElementById('searchHint');
 const settingsBtn   = document.getElementById('settingsBtn');
 const modalBackdrop = document.getElementById('modalBackdrop');
 const modalClose    = document.getElementById('modalClose');
-const engineList    = document.getElementById('engineList');
-const engineLabel   = document.getElementById('engineLabel');
 
 // ── URL helpers ───────────────────────────────────────────────────
 function looksLikeUrl(s) {
@@ -36,85 +25,50 @@ function toAbsoluteUrl(s) {
 
 // ── Proxy navigation ──────────────────────────────────────────────
 function proxyNavigate(targetUrl) {
-  if (activeEngine === 'uv') {
-    navigateUV(targetUrl);
-  } else {
-    navigateScramjet(targetUrl);
-  }
-}
-
-function navigateUV(url) {
-  if (typeof __uv$config === 'undefined') {
-    setHint('⚠ UV not loaded. Try refreshing.', true);
-    return;
-  }
-  try {
-    const encoded = __uv$config.encodeUrl(url);
-    window.location.href = __uv$config.prefix + encoded;
-  } catch (err) {
-    setHint('⚠ UV error: ' + err.message, true);
-  }
-}
-
-function navigateScramjet(url) {
   const ctrl = window.__liminalScramjet;
   if (ctrl) {
     try {
-      window.location.href = ctrl.encodeUrl(url);
+      window.location.href = ctrl.encodeUrl(targetUrl);
       return;
     } catch (e) {
       console.warn('[liminal] Scramjet encodeUrl failed:', e);
     }
   }
-  // Controller not ready yet – fall back to UV
-  navigateUV(url);
+  setHint('⚠ Proxy not ready yet. Please wait a moment and try again.', true);
 }
 
 // ── Service worker & proxy init ───────────────────────────────────
-async function loadScript(src, asModule = false) {
+async function loadScript(src) {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
     const s = document.createElement('script');
     s.src = src;
-    if (asModule) s.type = 'module';
     s.onload  = resolve;
     s.onerror = () => reject(new Error(`Failed to load ${src}`));
     document.head.appendChild(s);
   });
 }
 
-async function initUV() {
-  if (!('serviceWorker' in navigator)) return;
-  try {
-    await navigator.serviceWorker.register('/uv/uv.sw.js', { scope: '/service/' });
-  } catch (e) {
-    console.warn('[liminal] UV SW failed:', e);
+async function initProxy() {
+  if (!('serviceWorker' in navigator)) {
+    setHint('⚠ Service workers not supported in this browser.', true);
+    return;
   }
-}
-
-async function initScramjet() {
-  if (!('serviceWorker' in navigator)) { await initUV(); return; }
 
   try {
-    // 1. Load scramjet client bundle (defines ScramjetController globally)
     await loadScript('/scramjet/scramjet.bundle.js');
-
-    // 2. Load bare-mux client (defines BareMux globally)
     await loadScript('/baremux/index.js');
 
-    // 3. Register Scramjet service worker
     await navigator.serviceWorker.register('/scramjet/scramjet.bundle.js', {
       scope: '/scramjet/',
     });
     await navigator.serviceWorker.ready;
 
-    // 4. Set up bare-mux transport → bare server at /bare/
     if (typeof BareMux !== 'undefined') {
       const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
       await conn.setManualTransport('/bare-transport.mjs', ['/bare/']);
     }
 
-    // 5. Initialise ScramjetController
     if (typeof ScramjetController !== 'undefined') {
       const ctrl = new ScramjetController({
         prefix: '/scramjet/',
@@ -128,18 +82,8 @@ async function initScramjet() {
       window.__liminalScramjet = ctrl;
     }
   } catch (e) {
-    console.warn('[liminal] Scramjet init failed, falling back to UV:', e);
-    await initUV();
-  }
-}
-
-async function initProxy() {
-  if (activeEngine === 'scramjet') {
-    await initScramjet();
-    // Also register UV SW as backup
-    initUV();
-  } else {
-    await initUV();
+    console.warn('[liminal] Scramjet init failed:', e);
+    setHint('⚠ Proxy failed to initialise. Try refreshing.', true);
   }
 }
 
@@ -161,7 +105,6 @@ searchInput.addEventListener('input', () => {
   }
 });
 
-// Slash focuses search bar
 document.addEventListener('keydown', e => {
   if (e.key === '/' && document.activeElement !== searchInput) {
     e.preventDefault();
@@ -170,7 +113,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
-// Quick link buttons
 document.querySelectorAll('.quick-btn').forEach(btn => {
   btn.addEventListener('click', () => proxyNavigate(btn.dataset.url));
 });
@@ -199,23 +141,6 @@ modalClose.addEventListener('click', closeModal);
 modalBackdrop.addEventListener('click', e => {
   if (e.target === modalBackdrop) closeModal();
 });
-
-// Engine cards
-engineList.querySelectorAll('.engine-card[data-engine]').forEach(card => {
-  card.addEventListener('click', () => {
-    const eng = card.dataset.engine;
-    saveEngine(eng);
-    syncEngineUI();
-    initProxy();
-  });
-});
-
-function syncEngineUI() {
-  engineList.querySelectorAll('.engine-card[data-engine]').forEach(card => {
-    card.classList.toggle('active', card.dataset.engine === activeEngine);
-  });
-  engineLabel.textContent = activeEngine === 'uv' ? 'Ultraviolet' : 'Scramjet';
-}
 
 // ── Starfield canvas ──────────────────────────────────────────────
 (function starfield() {
@@ -278,6 +203,5 @@ function syncEngineUI() {
 })();
 
 // ── Init ──────────────────────────────────────────────────────────
-syncEngineUI();
 initProxy();
 window.addEventListener('load', () => searchInput.focus());

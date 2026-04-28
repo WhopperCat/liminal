@@ -85,9 +85,7 @@
       <!-- Proxy status badge -->
       <div class="status-badge">
         <span class="status-dot"></span>
-        <span id="engineLabel">Scramjet</span>
-        <span class="status-sep">·</span>
-        <span class="status-text">ready</span>
+        <span class="status-text">Scramjet · ready</span>
       </div>
     </div>
   </main>
@@ -111,41 +109,6 @@
       </div>
 
       <div class="modal-body">
-
-        <!-- Proxy engine -->
-        <section class="setting-section">
-          <div class="setting-label">Proxy Engine</div>
-          <div class="setting-desc">Choose how your traffic is routed. Scramjet is faster and the default.</div>
-          <div class="engine-list" id="engineList">
-
-            <button class="engine-card active" data-engine="scramjet">
-              <span class="engine-icon">⚡</span>
-              <span class="engine-info">
-                <span class="engine-name">Scramjet</span>
-                <span class="engine-sub">Default · Mercury Workshop</span>
-              </span>
-              <span class="engine-check">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 6 9 17l-5-5"/>
-                </svg>
-              </span>
-            </button>
-
-            <button class="engine-card" data-engine="uv">
-              <span class="engine-icon">🌐</span>
-              <span class="engine-info">
-                <span class="engine-name">Ultraviolet</span>
-                <span class="engine-sub">Classic · Titanium Network</span>
-              </span>
-              <span class="engine-check">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 6 9 17l-5-5"/>
-                </svg>
-              </span>
-            </button>
-
-          </div>
-        </section>
 
         <!-- Search engine -->
         <section class="setting-section">
@@ -174,8 +137,7 @@
             <span class="about-zzz">💤</span>
             <div class="about-text">
               <strong>Liminal Axis</strong> is an open web proxy.<br>
-              Powered by <a class="link" href="https://github.com/MercuryWorkshop/scramjet" target="_blank" rel="noopener">Scramjet</a>
-              and <a class="link" href="https://github.com/titaniumnetwork-dev/Ultraviolet" target="_blank" rel="noopener">Ultraviolet</a>.
+              Powered by <a class="link" href="https://github.com/MercuryWorkshop/scramjet" target="_blank" rel="noopener">Scramjet</a>.
             </div>
           </div>
         </section>
@@ -184,9 +146,6 @@
     </div>
   </div>
 
-  <!-- UV bundle + config (needed for UV codec in app.js) -->
-  <script src="/uv/uv.bundle.js" defer></script>
-  <script src="/uv/uv.config.js" defer></script>
   <script src="/app.js" defer></script>
 </body>
 </html>

@@ -25,6 +25,13 @@ const bareMuxDist = path.join(
 app.use('/baremux/', express.static(bareMuxDist));
 console.log('  bare-mux:    /baremux/');
 
+// ── epoxy transport (/epoxy/) ─────────────────────────────────────
+const epoxyDist = path.join(
+  __dirname, 'node_modules', '@mercuryworkshop', 'epoxy-transport', 'dist'
+);
+app.use('/epoxy/', express.static(epoxyDist));
+console.log('  epoxy:       /epoxy/');
+
 // ── Static public dir ────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 

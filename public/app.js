@@ -59,14 +59,15 @@ async function initProxy() {
     await loadScript('/scramjet/scramjet.bundle.js');
     await loadScript('/baremux/index.js');
 
-    await navigator.serviceWorker.register('/scramjet/scramjet.bundle.js', {
+    const swReg = await navigator.serviceWorker.register('/scramjet/scramjet.bundle.js', {
       scope: '/scramjet/',
     });
     await navigator.serviceWorker.ready;
 
     if (typeof BareMux !== 'undefined') {
+      const wispUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/wisp/';
       const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
-      await conn.setTransport('/baremux/index.js', [{ wisp: `${location.origin.replace('http', 'ws')}/wisp/` }]);
+      await conn.setTransport('/epoxy/index.mjs', [{ wisp: wispUrl }]);
     }
 
     if (typeof ScramjetController !== 'undefined') {

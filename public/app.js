@@ -133,14 +133,8 @@ async function initProxy() {
     const localWisp  = `wss://${location.host}/wisp/`;
     const wispUrl    = (await checkWisp(localWisp)) ? localWisp : PUBLIC_WISP;
 
-    // Try libcurl first, fall back to epoxy
-    try {
-      await conn.setTransport('/libcurl/index.mjs', [{ wisp: wispUrl }]);
-      setStatus('Transport: libcurl');
-    } catch {
-      await conn.setTransport('/epoxy/index.mjs', [{ wisp: wispUrl }]);
-      setStatus('Transport: epoxy');
-    }
+    await conn.setTransport('/epoxy/index.mjs', [{ wisp: wispUrl }]);
+    setStatus('Transport: epoxy');
 
     setStatus('Starting proxy engine…');
     const { ScramjetController } = $scramjetLoadController();

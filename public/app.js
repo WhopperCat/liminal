@@ -56,8 +56,14 @@ async function initProxy() {
 
   try {
     setHint('[1/3] Registering service worker…');
-    navigator.serviceWorker.register('/scramjet-sw.js', { scope: '/scramjet/' });
-    await navigator.serviceWorker.ready;
+    const reg = await navigator.serviceWorker.register('/scramjet-sw.js', { scope: '/scramjet/' });
+    await new Promise(resolve => {
+      if (reg.active) { resolve(); return; }
+      const pending = reg.installing || reg.waiting;
+      pending.addEventListener('statechange', function() {
+        if (reg.active) resolve();
+      });
+    });
 
     setHint('[2/3] Setting up transport…');
     const localWisp = `wss://${location.host}/wisp/`;

@@ -7,21 +7,26 @@ const btnFwd        = $('btn-fwd');
 const btnReload     = $('btn-reload');
 const btnHome       = $('btn-home');
 const btnMenu       = $('btn-menu');
+const btnNewTab     = $('btn-new-tab');
 const chromeForm    = $('chrome-form');
 const urlBar        = $('url-bar');
-const newTab        = $('new-tab');
+const newTabPage    = $('new-tab');
 const searchForm    = $('search-form');
 const searchInput   = $('search-input');
 const statusEl      = $('status');
-const proxyFrame    = $('proxy-frame');
+const tabList       = $('tab-list');
 const settingsPanel = $('settings-panel');
 const faviconEl     = $('favicon');
 
 const DEFAULT_FAVICON = faviconEl.href;
+const FRAME_SANDBOX = [
+  'allow-same-origin', 'allow-scripts', 'allow-forms', 'allow-popups',
+  'allow-modals', 'allow-pointer-lock', 'allow-storage-access-by-user-activation',
+  'allow-orientation-lock', 'allow-presentation',
+].join(' ');
 
 const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
 
-// Ordered list of WISP servers to try. Local is always first (dynamic).
 const WISP_FALLBACKS = [
   'wss://wisp.mercurywork.shop/wisp/',
   'wss://wisp.eduu.eu.org/wisp/',
@@ -31,18 +36,104 @@ const WISP_FALLBACKS = [
 let activeWispUrl  = null;
 let transportReady = false;
 
-let axisFrame = null;
-let browsing  = false;
+// ── Tabs ──────────────────────────────────────────────────────────
+let tabIdSeq = 0;
+const tabs   = [];
+let activeTab = null;
 
-// ── History tracking ──────────────────────────────────────────────
-const navStack  = [];
-let navPos      = -1;
-let histNavFlag = false;
+function makeTab() {
+  const iframe = document.createElement('iframe');
+  iframe.className = 'proxy-frame';
+  iframe.hidden = true;
+  iframe.setAttribute('sandbox', FRAME_SANDBOX);
+  document.body.appendChild(iframe);
 
-function updateNavBtns() {
-  btnBack.disabled = navPos <= 0;
-  btnFwd.disabled  = navPos >= navStack.length - 1;
+  const tab = {
+    id: ++tabIdSeq,
+    iframe,
+    frame: null,          // ScramjetFrame, created lazily
+    url: '',
+    title: 'New Tab',
+    browsing: false,
+    navStack: [],
+    navPos: -1,
+    _histFlag: false,
+    el: null,
+  };
+  tab.el = buildTabEl(tab);
+  tabList.appendChild(tab.el);
+  tabs.push(tab);
+  return tab;
 }
+
+function buildTabEl(tab) {
+  const el = document.createElement('div');
+  el.className = 'tab';
+  el.innerHTML =
+    '<span class="tab-title">New Tab</span>' +
+    '<button class="tab-close" title="Close tab">' +
+    '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
+    '<line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/>' +
+    '</svg></button>';
+
+  el.addEventListener('click', e => {
+    if (!e.target.closest('.tab-close')) switchTab(tab.id);
+  });
+  el.querySelector('.tab-close').addEventListener('click', e => {
+    e.stopPropagation();
+    closeTab(tab.id);
+  });
+  return el;
+}
+
+function refreshTab(tab) {
+  tab.el.querySelector('.tab-title').textContent = tab.title;
+  tab.el.classList.toggle('active', tab === activeTab);
+}
+
+function switchTab(id) {
+  const tab = tabs.find(t => t.id === id);
+  if (!tab || tab === activeTab) return;
+
+  if (activeTab) {
+    activeTab.iframe.hidden = true;
+    activeTab.el.classList.remove('active');
+  }
+  activeTab = tab;
+  tab.el.classList.add('active');
+
+  if (tab.browsing) {
+    newTabPage.hidden = true;
+    tab.iframe.hidden = false;
+    urlBar.value = tab.url;
+  } else {
+    newTabPage.hidden = false;
+    urlBar.value = '';
+    setTimeout(() => searchInput.focus(), 50);
+  }
+  updateNavBtns();
+  tab.el.scrollIntoView({ inline: 'nearest' });
+}
+
+function closeTab(id) {
+  const idx = tabs.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  const tab = tabs[idx];
+
+  tab.iframe.remove();
+  tab.el.remove();
+  tabs.splice(idx, 1);
+
+  if (tabs.length === 0) {
+    switchTab(makeTab().id);
+    return;
+  }
+  if (activeTab === tab) {
+    switchTab(tabs[Math.min(idx, tabs.length - 1)].id);
+  }
+}
+
+btnNewTab.addEventListener('click', () => switchTab(makeTab().id));
 
 // ── URL helpers ───────────────────────────────────────────────────
 function toUrl(s) {
@@ -54,22 +145,17 @@ function toUrl(s) {
   return 'https://duckduckgo.com/?q=' + encodeURIComponent(s);
 }
 
-// ── View switching ────────────────────────────────────────────────
-function showBrowsing() {
-  newTab.hidden     = true;
-  proxyFrame.hidden = false;
-  browsing = true;
-}
-
-function showNewTab() {
-  newTab.hidden     = false;
-  proxyFrame.hidden = true;
-  browsing = false;
-  urlBar.value = '';
-  setTimeout(() => searchInput.focus(), 50);
+function domainOf(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
 }
 
 // ── Navigation ────────────────────────────────────────────────────
+function updateNavBtns() {
+  const t = activeTab;
+  btnBack.disabled = !t || t.navPos <= 0;
+  btnFwd.disabled  = !t || t.navPos >= t.navStack.length - 1;
+}
+
 async function navigate(url) {
   if (!transportReady) {
     setStatus('Reconnecting…');
@@ -79,42 +165,56 @@ async function navigate(url) {
   const ctrl = window.__axisCtrl;
   if (!ctrl) { setStatus('⚠ Proxy not ready.', true); return; }
 
-  if (!axisFrame) {
-    axisFrame = ctrl.createFrame(proxyFrame);
-    axisFrame.addEventListener('urlchange', e => {
-      urlBar.value = e.url;
-      if (!histNavFlag) {
-        if (e.url !== navStack[navPos]) {
-          if (navPos < navStack.length - 1) navStack.splice(navPos + 1);
-          navStack.push(e.url);
-          navPos = navStack.length - 1;
+  const tab = activeTab;
+
+  if (!tab.frame) {
+    tab.frame = ctrl.createFrame(tab.iframe);
+    tab.frame.addEventListener('urlchange', e => {
+      tab.url = e.url;
+      tab.title = domainOf(e.url);
+      refreshTab(tab);
+      if (tab === activeTab) urlBar.value = e.url;
+
+      if (!tab._histFlag) {
+        if (e.url !== tab.navStack[tab.navPos]) {
+          if (tab.navPos < tab.navStack.length - 1) tab.navStack.splice(tab.navPos + 1);
+          tab.navStack.push(e.url);
+          tab.navPos = tab.navStack.length - 1;
         }
       }
-      histNavFlag = false;
-      updateNavBtns();
+      tab._histFlag = false;
+      if (tab === activeTab) updateNavBtns();
     });
   }
 
-  axisFrame.go(url);
+  tab.frame.go(url);
+  tab.url = url;
+  tab.title = domainOf(url);
+  tab.browsing = true;
+  refreshTab(tab);
+  newTabPage.hidden = true;
+  tab.iframe.hidden = false;
   urlBar.value = url;
-  showBrowsing();
+  updateNavBtns();
 }
 
 // ── Chrome controls ───────────────────────────────────────────────
 btnBack.addEventListener('click', () => {
-  if (axisFrame && navPos > 0) {
-    histNavFlag = true;
-    navPos--;
-    axisFrame.back();
+  const t = activeTab;
+  if (t?.frame && t.navPos > 0) {
+    t._histFlag = true;
+    t.navPos--;
+    t.frame.back();
     updateNavBtns();
   }
 });
 
 btnFwd.addEventListener('click', () => {
-  if (axisFrame && navPos < navStack.length - 1) {
-    histNavFlag = true;
-    navPos++;
-    axisFrame.forward();
+  const t = activeTab;
+  if (t?.frame && t.navPos < t.navStack.length - 1) {
+    t._histFlag = true;
+    t.navPos++;
+    t.frame.forward();
     updateNavBtns();
   }
 });
@@ -122,15 +222,25 @@ btnFwd.addEventListener('click', () => {
 btnReload.addEventListener('click', async () => {
   if (!transportReady) {
     await reinitTransport();
-    if (browsing && transportReady) axisFrame?.reload();
-  } else if (browsing) {
-    axisFrame?.reload();
+    if (activeTab?.browsing && transportReady) activeTab.frame?.reload();
+  } else if (activeTab?.browsing) {
+    activeTab.frame?.reload();
   } else {
     initProxy();
   }
 });
 
-btnHome.addEventListener('click', showNewTab);
+btnHome.addEventListener('click', () => {
+  if (!activeTab) return;
+  activeTab.browsing = false;
+  activeTab.title = 'New Tab';
+  refreshTab(activeTab);
+  activeTab.iframe.hidden = true;
+  newTabPage.hidden = false;
+  urlBar.value = '';
+  updateNavBtns();
+  setTimeout(() => searchInput.focus(), 50);
+});
 
 chromeForm.addEventListener('submit', e => {
   e.preventDefault();
@@ -140,11 +250,16 @@ chromeForm.addEventListener('submit', e => {
 
 urlBar.addEventListener('focus', () => urlBar.select());
 
-// ── New-tab search ────────────────────────────────────────────────
 searchForm.addEventListener('submit', e => {
   e.preventDefault();
   const v = searchInput.value.trim();
   if (v) navigate(toUrl(v));
+});
+
+// Ctrl+T / Ctrl+W keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 't') { e.preventDefault(); switchTab(makeTab().id); }
+  if (e.ctrlKey && e.key === 'w') { e.preventDefault(); if (activeTab) closeTab(activeTab.id); }
 });
 
 // ── Settings panel ────────────────────────────────────────────────
@@ -209,20 +324,15 @@ function loadAutoBlank() {
 const cloakTitleInput   = $('cloak-title');
 const cloakFaviconInput = $('cloak-favicon');
 
-function setFavicon(href) {
-  faviconEl.href = href;
-}
+function setFavicon(href) { faviconEl.href = href; }
 
 function applyCloak() {
   const title   = cloakTitleInput.value.trim();
   const favicon = cloakFaviconInput.value.trim();
-
-  if (title) { localStorage.setItem('cloakTitle', title); document.title = title; }
-  else       { localStorage.removeItem('cloakTitle');      document.title = 'Axis'; }
-
+  if (title)   { localStorage.setItem('cloakTitle',   title);   document.title = title; }
+  else         { localStorage.removeItem('cloakTitle');           document.title = 'Axis'; }
   if (favicon) { localStorage.setItem('cloakFavicon', favicon); setFavicon(favicon); }
   else         { localStorage.removeItem('cloakFavicon');        setFavicon(DEFAULT_FAVICON); }
-
   settingsPanel.hidden = true;
 }
 
@@ -250,13 +360,12 @@ function initSettings() {
   loadSearchEngine();
   loadAutoBlank();
   loadCloak();
-  // Auto-launch in about:blank if enabled and we are the top-level window
   if (localStorage.getItem('autoBlank') === 'true' && window.parent === window) {
     launchInAboutBlank();
   }
 }
 
-// ── WISP helpers ─────────────────────────────────────────────────
+// ── WISP helpers ──────────────────────────────────────────────────
 function checkWisp(url) {
   return new Promise(resolve => {
     const ws = new WebSocket(url);
@@ -286,7 +395,6 @@ async function setTransport(wispUrl) {
   }
 }
 
-// Re-establish WISP + transport without re-registering the service worker.
 async function reinitTransport() {
   transportReady = false;
   try {
@@ -312,7 +420,6 @@ async function initProxy() {
     setStatus('⚠ Service workers not supported.', true);
     return;
   }
-
   try {
     setStatus('Registering service worker…');
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/scramjet/' });
@@ -350,7 +457,6 @@ async function initProxy() {
     transportReady = true;
     setStatus('');
 
-    // Detect when the mux dies and mark transport as needing reconnect.
     navigator.serviceWorker.addEventListener('message', e => {
       if (e.data?.type === 'wisp-error') {
         transportReady = false;
@@ -371,4 +477,5 @@ function setStatus(msg, warn = false) {
 // ── Boot ──────────────────────────────────────────────────────────
 initSettings();
 initProxy();
+switchTab(makeTab().id);
 window.addEventListener('load', () => searchInput.focus());

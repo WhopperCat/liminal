@@ -6,9 +6,12 @@ const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 
 self.addEventListener('fetch', event => {
-  if (scramjet.route(event)) {
-    event.respondWith(
-      scramjet.loadConfig().then(() => scramjet.fetch(event))
-    );
-  }
+  event.respondWith(
+    scramjet.loadConfig().then(() => {
+      if (scramjet.route(event)) {
+        return scramjet.fetch(event);
+      }
+      return fetch(event.request);
+    })
+  );
 });

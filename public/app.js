@@ -28,10 +28,12 @@ function toAbsoluteUrl(s) {
 
 function proxyNavigate(targetUrl) {
   const ctrl = window.__liminalScramjet;
-  if (ctrl) {
+  if (!ctrl) { setHint('⚠ Proxy not ready yet.', true); return; }
+  try {
     window.location.href = ctrl.encodeUrl(targetUrl);
-  } else {
-    setHint('⚠ Proxy not ready yet — check status below.', true);
+  } catch (e) {
+    setHint('⚠ ' + e.message, true);
+    console.error('[liminal] encodeUrl failed:', e);
   }
 }
 

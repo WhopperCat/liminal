@@ -1,6 +1,6 @@
 const express = require('express');
-const http = require('http');
-const path = require('path');
+const http    = require('http');
+const path    = require('path');
 const { server: wisp } = require('@mercuryworkshop/wisp-js/server');
 
 const app = express();
@@ -10,34 +10,44 @@ function allowSW(req, res, next) {
   next();
 }
 
-const vendorCache = { maxAge: '7d', immutable: true };
+const CACHE_LONG = { maxAge: '7d', immutable: true };
 
-// Scramjet dist files
+// Scramjet dist
 app.use('/scramjet/', allowSW, express.static(
-  path.join(__dirname, 'node_modules', '@mercuryworkshop', 'scramjet', 'dist'),
-  vendorCache
+  path.join(__dirname, 'node_modules/@mercuryworkshop/scramjet/dist'),
+  CACHE_LONG
 ));
 
-// bare-mux client
+// bare-mux
 app.use('/baremux/', express.static(
-  path.join(__dirname, 'node_modules', '@mercuryworkshop', 'bare-mux', 'dist'),
-  vendorCache
+  path.join(__dirname, 'node_modules/@mercuryworkshop/bare-mux/dist'),
+  CACHE_LONG
 ));
 
-// epoxy transport (WISP client)
+// epoxy transport
 app.get('/epoxy/index.mjs', (req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
   res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
   res.sendFile(path.join(
-    __dirname, 'node_modules', '@mercuryworkshop', 'epoxy-transport', 'dist', 'index.mjs'
+    __dirname, 'node_modules/@mercuryworkshop/epoxy-transport/dist/index.mjs'
   ));
 });
 
-// SW wrapper
-app.get('/scramjet-sw.js', allowSW, (req, res) =>
-  res.sendFile(path.join(__dirname, 'public', 'scramjet-sw.js'))
+// libcurl transport
+app.get('/libcurl/index.mjs', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+  res.sendFile(path.join(
+    __dirname, 'node_modules/@mercuryworkshop/libcurl-transport/dist/index.mjs'
+  ));
+});
+
+// service worker
+app.get('/sw.js', allowSW, (req, res) =>
+  res.sendFile(path.join(__dirname, 'public/sw.js'))
 );
 
+// static assets
 app.use(express.static(path.join(__dirname, 'public')));
 
 const server = http.createServer(app);
@@ -48,5 +58,5 @@ server.on('upgrade', (req, socket, head) => {
 
 const PORT = process.env.PORT || 8080;
 server.listen(PORT, () =>
-  console.log(`\n💤  Liminal Axis  →  http://localhost:${PORT}\n`)
+  console.log(`\nAxis  →  http://localhost:${PORT}\n`)
 );

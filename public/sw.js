@@ -1,11 +1,18 @@
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+
 importScripts('/scramjet/scramjet.all.js');
 
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
-const scramjet = new ScramjetServiceWorker();
+const sw = new ScramjetServiceWorker();
 
-// SW scope is /scramjet/ so only proxied requests reach this handler
 self.addEventListener('fetch', event => {
-  event.respondWith(scramjet.fetch(event));
+  event.respondWith(
+    sw.loadConfig()
+      .catch(() => {})
+      .then(() => {
+        if (sw.route(event)) return sw.fetch(event);
+        return fetch(event.request);
+      })
+  );
 });

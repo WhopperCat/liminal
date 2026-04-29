@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Axis</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><line x1='20' y1='34' x2='20' y2='6' stroke='white' stroke-width='2.5'/><polygon points='20,3 17,9 23,9' fill='white'/><line x1='6' y1='20' x2='34' y2='20' stroke='white' stroke-width='2.5'/><polygon points='37,20 31,17 31,23' fill='white'/><circle cx='20' cy='20' r='2.5' fill='white'/></svg>">
+  <link rel="icon" id="favicon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><line x1='20' y1='34' x2='20' y2='6' stroke='white' stroke-width='2.5'/><polygon points='20,3 17,9 23,9' fill='white'/><line x1='6' y1='20' x2='34' y2='20' stroke='white' stroke-width='2.5'/><polygon points='37,20 31,17 31,23' fill='white'/><circle cx='20' cy='20' r='2.5' fill='white'/></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,9 +30,50 @@
       <input id="url-bar" type="text" placeholder="Search or enter address" autocomplete="off" spellcheck="false">
     </form>
 
-    <button class="nav-btn" id="btn-menu" title="Menu">
+    <button class="nav-btn" id="btn-menu" title="Settings">
       <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2.5" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13.5" r="1.5"/></svg>
     </button>
+  </div>
+
+  <!-- Settings panel -->
+  <div id="settings-panel" hidden>
+    <div class="settings-section">
+      <div class="settings-section-title">Search Engine</div>
+      <label class="settings-radio">
+        <input type="radio" name="engine" value="duckduckgo">
+        <span>DuckDuckGo</span>
+      </label>
+      <label class="settings-radio">
+        <input type="radio" name="engine" value="brave">
+        <span>Brave</span>
+      </label>
+    </div>
+
+    <div class="settings-divider"></div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">about:blank</div>
+      <button class="settings-action-btn" id="launch-blank">Open in about:blank</button>
+      <label class="settings-toggle-row">
+        <span>Auto-launch</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="auto-blank">
+          <span class="toggle-slider"></span>
+        </label>
+      </label>
+    </div>
+
+    <div class="settings-divider"></div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">Tab Cloaker</div>
+      <input type="text" class="settings-input" id="cloak-title" placeholder="Page title (e.g. Google Classroom)">
+      <input type="text" class="settings-input" id="cloak-favicon" placeholder="Favicon URL (https://…)">
+      <div class="settings-row">
+        <button class="settings-action-btn" id="apply-cloak">Apply</button>
+        <button class="settings-action-btn settings-ghost-btn" id="reset-cloak">Reset</button>
+      </div>
+    </div>
   </div>
 
   <!-- New-tab page -->

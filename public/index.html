@@ -3,139 +3,66 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Liminal Axis</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💤</text></svg>">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <title>Axis</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><line x1='20' y1='34' x2='20' y2='6' stroke='white' stroke-width='2.5'/><polygon points='20,3 17,9 23,9' fill='white'/><line x1='6' y1='20' x2='34' y2='20' stroke='white' stroke-width='2.5'/><polygon points='37,20 31,17 31,23' fill='white'/><circle cx='20' cy='20' r='2.5' fill='white'/></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- Header -->
-  <header class="header">
-    <div class="header-brand">
-      <span class="header-name">Liminal Axis</span>
+  <!-- Browser chrome -->
+  <div id="chrome">
+    <div id="nav-btns">
+      <button class="nav-btn" id="btn-back"   title="Back"    disabled>
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M10 3L5 8l5 5V3z"/></svg>
+      </button>
+      <button class="nav-btn" id="btn-fwd"    title="Forward" disabled>
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6 3l5 5-5 5V3z"/></svg>
+      </button>
+      <button class="nav-btn" id="btn-reload" title="Reload">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M13 2.5A6.5 6.5 0 1 1 6.5 1.5"/><polyline points="13,1 13,4 10,4"/></svg>
+      </button>
+      <button class="nav-btn" id="btn-home"   title="New tab">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L1 7h2v7h4v-4h2v4h4V7h2L8 1z"/></svg>
+      </button>
     </div>
-    <button class="btn-icon" id="settingsBtn" aria-label="Open settings" title="Settings">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-        <circle cx="12" cy="12" r="3"/>
-      </svg>
+
+    <form id="chrome-form" autocomplete="off" spellcheck="false">
+      <input id="url-bar" type="text" placeholder="Search or enter address" autocomplete="off" spellcheck="false">
+    </form>
+
+    <button class="nav-btn" id="btn-menu" title="Menu">
+      <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2.5" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13.5" r="1.5"/></svg>
     </button>
-  </header>
-
-  <!-- Main -->
-  <main class="main">
-    <div class="hero">
-
-      <!-- Branding -->
-      <div class="brand-block">
-        <h1 class="brand-name">Liminal Axis</h1>
-        <p class="brand-tagline">Step through. Browse freely.</p>
-      </div>
-
-      <!-- Search -->
-      <form class="search-form" id="searchForm" autocomplete="off" spellcheck="false">
-        <div class="search-bar" id="searchBar">
-          <div class="search-icon-wrap">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="m21 21-4.35-4.35"/>
-            </svg>
-          </div>
-          <input
-            class="search-input"
-            id="searchInput"
-            type="text"
-            placeholder="Search or enter a URL…"
-            autocomplete="off"
-            spellcheck="false"
-            aria-label="Search or enter URL"
-          >
-          <button type="submit" class="go-btn" aria-label="Go">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-          </button>
-        </div>
-        <p class="search-hint" id="searchHint" aria-live="polite"></p>
-      </form>
-
-      <!-- Quick links -->
-      <div class="quick-row">
-        <button class="quick-btn" data-url="https://youtube.com">YouTube</button>
-        <button class="quick-btn" data-url="https://reddit.com">Reddit</button>
-        <button class="quick-btn" data-url="https://x.com">X</button>
-        <button class="quick-btn" data-url="https://github.com">GitHub</button>
-        <button class="quick-btn" data-url="https://wikipedia.org">Wikipedia</button>
-      </div>
-
-      <!-- Proxy status badge -->
-      <div class="status-badge">
-        <span class="status-dot"></span>
-        <span class="status-text">Scramjet · ready</span>
-      </div>
-    </div>
-  </main>
-
-  <!-- Settings modal -->
-  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="modal" id="modal">
-      <div class="modal-header">
-        <h2 class="modal-title" id="modalTitle">Settings</h2>
-        <button class="btn-icon" id="modalClose" aria-label="Close settings">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <path d="M18 6 6 18M6 6l12 12"/>
-          </svg>
-        </button>
-      </div>
-
-      <div class="modal-body">
-
-        <!-- Search engine -->
-        <section class="setting-section">
-          <div class="setting-label">Search Engine</div>
-          <div class="setting-desc">Used when your input isn't a URL.</div>
-          <div class="engine-list">
-            <button class="engine-card active" data-search="ddg" style="cursor:default;">
-              <span class="engine-icon">🦆</span>
-              <span class="engine-info">
-                <span class="engine-name">DuckDuckGo</span>
-                <span class="engine-sub">Private · Default</span>
-              </span>
-              <span class="engine-check">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 6 9 17l-5-5"/>
-                </svg>
-              </span>
-            </button>
-          </div>
-        </section>
-
-        <!-- About -->
-        <section class="setting-section">
-          <div class="setting-label">About</div>
-          <div class="about-card">
-            <div class="about-text">
-              <strong>Liminal Axis</strong> is an open web proxy.<br>
-              Powered by <a class="link" href="https://github.com/MercuryWorkshop/scramjet" target="_blank" rel="noopener">Scramjet</a>.
-            </div>
-          </div>
-        </section>
-
-      </div>
-    </div>
   </div>
 
-  <!-- Proxy frame overlay -->
-  <div id="frameWrap">
-    <button id="frameBack" aria-label="Back to search">&#8592; Back</button>
-    <iframe id="proxyFrame" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-orientation-lock allow-pointer-lock allow-presentation allow-storage-access-by-user-activation"></iframe>
+  <!-- New-tab page -->
+  <div id="new-tab">
+    <div id="brand">
+      <svg id="logo" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <line x1="40" y1="68" x2="40" y2="12" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <polygon points="40,5 35,16 45,16" fill="white"/>
+        <line x1="12" y1="40" x2="68" y2="40" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <polygon points="75,40 64,35 64,45" fill="white"/>
+        <circle cx="40" cy="40" r="4" fill="white"/>
+      </svg>
+      <h1 id="wordmark">Axis</h1>
+      <span id="byline">By Liminal</span>
+    </div>
+
+    <form id="search-form" autocomplete="off" spellcheck="false">
+      <input id="search-input" type="text" placeholder="Search or enter URL…" autocomplete="off" spellcheck="false">
+    </form>
+
+    <p id="status"></p>
   </div>
+
+  <!-- Proxy frame -->
+  <iframe id="proxy-frame" hidden
+    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-pointer-lock allow-storage-access-by-user-activation allow-orientation-lock allow-presentation"
+  ></iframe>
 
   <script src="/scramjet/scramjet.all.js" defer></script>
-  <script src="/baremux/index.js" defer></script>
-  <script src="/app.js" defer></script>
+  <script src="/baremux/index.js"         defer></script>
+  <script src="/app.js"                   defer></script>
 </body>
 </html>

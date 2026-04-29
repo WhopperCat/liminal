@@ -1,65 +1,96 @@
-/* ── Liminal Axis — app.js ───────────────────────────────────────── */
+/* Axis — app.js */
 
-const searchForm    = document.getElementById('searchForm');
-const searchInput   = document.getElementById('searchInput');
-const searchHint    = document.getElementById('searchHint');
-const settingsBtn   = document.getElementById('settingsBtn');
-const modalBackdrop = document.getElementById('modalBackdrop');
-const modalClose    = document.getElementById('modalClose');
-const proxyFrame    = document.getElementById('proxyFrame');
-const frameWrap     = document.getElementById('frameWrap');
-const frameBack     = document.getElementById('frameBack');
+const $ = id => document.getElementById(id);
+
+const chrome      = $('chrome');
+const btnBack     = $('btn-back');
+const btnFwd      = $('btn-fwd');
+const btnReload   = $('btn-reload');
+const btnHome     = $('btn-home');
+const chromeForm  = $('chrome-form');
+const urlBar      = $('url-bar');
+const newTab      = $('new-tab');
+const searchForm  = $('search-form');
+const searchInput = $('search-input');
+const statusEl    = $('status');
+const proxyFrame  = $('proxy-frame');
 
 const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
-
 const PUBLIC_WISP = 'wss://wisp.mercurywork.shop/wisp/';
 
-let scramjetFrame = null;
+let axisFrame = null;   // ScramjetFrame instance
+let browsing  = false;
 
-function looksLikeUrl(s) {
-  s = s.trim();
-  if (/^https?:\/\//i.test(s)) return true;
-  if (!s.includes(' ') && /^[a-z0-9-]+(\.[a-z]{2,})(\/.*)?$/i.test(s)) return true;
-  return false;
-}
-
-function toAbsoluteUrl(s) {
+// ── URL helpers ───────────────────────────────────────────────────
+function toUrl(s) {
   s = s.trim();
   if (/^https?:\/\//i.test(s)) return s;
-  if (looksLikeUrl(s))         return 'https://' + s;
+  if (!s.includes(' ') && /^[a-z0-9-]+(\.[a-z]{2,})(\/.*)?$/i.test(s)) return 'https://' + s;
   return 'https://duckduckgo.com/?q=' + encodeURIComponent(s);
 }
 
-function showFrame() {
-  frameWrap.classList.add('open');
-  document.body.style.overflow = 'hidden';
+// ── View switching ────────────────────────────────────────────────
+function showBrowsing() {
+  newTab.hidden   = true;
+  proxyFrame.hidden = false;
+  browsing = true;
 }
 
-function hideFrame() {
-  frameWrap.classList.remove('open');
-  document.body.style.overflow = '';
+function showNewTab() {
+  newTab.hidden   = false;
+  proxyFrame.hidden = true;
+  browsing = false;
+  urlBar.value = '';
+  setTimeout(() => searchInput.focus(), 50);
 }
 
-function proxyNavigate(targetUrl) {
-  const ctrl = window.__liminalScramjet;
-  if (!ctrl) { setHint('⚠ Proxy not ready yet.', true); return; }
-  try {
-    if (!scramjetFrame) {
-      scramjetFrame = ctrl.createFrame(proxyFrame);
-    }
-    scramjetFrame.go(targetUrl);
-    showFrame();
-  } catch (e) {
-    setHint('⚠ ' + e.message, true);
-    console.error('[liminal] navigate failed:', e);
+// ── Navigation ────────────────────────────────────────────────────
+function navigate(url) {
+  const ctrl = window.__axisCtrl;
+  if (!ctrl) { setStatus('⚠ Proxy not ready.', true); return; }
+
+  if (!axisFrame) {
+    axisFrame = ctrl.createFrame(proxyFrame);
+    axisFrame.addEventListener('urlchange', e => {
+      urlBar.value = e.url;
+    });
   }
+
+  axisFrame.go(url);
+  urlBar.value = url;
+  showBrowsing();
 }
 
+// ── Chrome controls ───────────────────────────────────────────────
+btnBack.addEventListener('click', () => axisFrame?.back());
+btnFwd.addEventListener('click',  () => axisFrame?.forward());
+btnReload.addEventListener('click', () => {
+  if (browsing) axisFrame?.reload();
+  else initProxy();
+});
+btnHome.addEventListener('click', showNewTab);
+
+chromeForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const v = urlBar.value.trim();
+  if (v) navigate(toUrl(v));
+});
+
+urlBar.addEventListener('focus', () => urlBar.select());
+
+// ── New-tab search ────────────────────────────────────────────────
+searchForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const v = searchInput.value.trim();
+  if (v) navigate(toUrl(v));
+});
+
+// ── WISP check ────────────────────────────────────────────────────
 function checkWisp(url) {
   return new Promise(resolve => {
     const ws = new WebSocket(url);
-    const done = (ok) => { clearTimeout(timer); try { ws.close(); } catch (_) {} resolve(ok); };
-    const timer = setTimeout(() => done(false), 2000);
+    const done = ok => { clearTimeout(t); try { ws.close(); } catch (_) {} resolve(ok); };
+    const t = setTimeout(() => done(false), 2500);
     ws.addEventListener('open',  () => done(true));
     ws.addEventListener('error', () => done(false));
   });
@@ -68,27 +99,38 @@ function checkWisp(url) {
 // ── Proxy init ────────────────────────────────────────────────────
 async function initProxy() {
   if (!('serviceWorker' in navigator)) {
-    setHint('⚠ Service workers not supported.', true);
+    setStatus('⚠ Service workers not supported.', true);
     return;
   }
 
   try {
-    setHint('[1/3] Registering service worker…');
-    const reg = await navigator.serviceWorker.register('/scramjet-sw.js', { scope: '/scramjet/' });
-    await new Promise(resolve => {
+    setStatus('Registering service worker…');
+    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/scramjet/' });
+
+    await new Promise((resolve, reject) => {
       if (reg.active) { resolve(); return; }
-      const pending = reg.installing || reg.waiting;
-      pending.addEventListener('statechange', function() {
-        if (reg.active) resolve();
+      const sw = reg.installing || reg.waiting;
+      if (!sw) { reject(new Error('No service worker found')); return; }
+      sw.addEventListener('statechange', function() {
+        if (this.state === 'activated') resolve();
+        if (this.state === 'redundant')  reject(new Error('Service worker install failed'));
       });
     });
 
-    setHint('[2/3] Setting up transport…');
-    const localWisp = `wss://${location.host}/wisp/`;
-    const wispUrl = (await checkWisp(localWisp)) ? localWisp : PUBLIC_WISP;
-    await conn.setTransport('/epoxy/index.mjs', [{ wisp: wispUrl }]);
+    setStatus('Setting up transport…');
+    const localWisp  = `wss://${location.host}/wisp/`;
+    const wispUrl    = (await checkWisp(localWisp)) ? localWisp : PUBLIC_WISP;
 
-    setHint('[3/3] Starting proxy engine…');
+    // Try libcurl first, fall back to epoxy
+    try {
+      await conn.setTransport('/libcurl/index.mjs', [{ wisp: wispUrl }]);
+      setStatus('Transport: libcurl');
+    } catch {
+      await conn.setTransport('/epoxy/index.mjs', [{ wisp: wispUrl }]);
+      setStatus('Transport: epoxy');
+    }
+
+    setStatus('Starting proxy engine…');
     const { ScramjetController } = $scramjetLoadController();
     const ctrl = new ScramjetController({
       prefix: '/scramjet/',
@@ -99,64 +141,18 @@ async function initProxy() {
       },
     });
     await ctrl.init();
-    window.__liminalScramjet = ctrl;
-    clearHint();
+    window.__axisCtrl = ctrl;
+    setStatus('');
   } catch (e) {
-    console.error('[liminal] init failed:', e);
-    setHint('⚠ Init failed: ' + e.message, true);
+    console.error('[axis] init failed:', e);
+    setStatus('⚠ ' + e.message, true);
   }
 }
 
-// ── Search ────────────────────────────────────────────────────────
-searchForm.addEventListener('submit', e => {
-  e.preventDefault();
-  const val = searchInput.value.trim();
-  if (!val) return;
-  proxyNavigate(toAbsoluteUrl(val));
-});
-
-searchInput.addEventListener('input', () => {
-  const val = searchInput.value.trim();
-  if (!val) { clearHint(); return; }
-  setHint(looksLikeUrl(val)
-    ? '→ Proxy: ' + (val.startsWith('http') ? val : 'https://' + val)
-    : '→ DuckDuckGo: "' + val + '"'
-  );
-});
-
-document.addEventListener('keydown', e => {
-  if (e.key === '/' && document.activeElement !== searchInput) {
-    e.preventDefault();
-    searchInput.focus();
-  }
-  if (e.key === 'Escape') {
-    if (frameWrap.classList.contains('open')) hideFrame();
-    else closeModal();
-  }
-});
-
-document.querySelectorAll('.quick-btn').forEach(btn =>
-  btn.addEventListener('click', () => proxyNavigate(btn.dataset.url))
-);
-
-frameBack.addEventListener('click', hideFrame);
-
-function setHint(msg, warn = false) {
-  searchHint.textContent = msg;
-  searchHint.classList.toggle('warn', warn);
+function setStatus(msg, warn = false) {
+  statusEl.textContent = msg;
+  statusEl.style.color = warn ? '#f66' : '#555';
 }
-function clearHint() {
-  searchHint.textContent = '';
-  searchHint.classList.remove('warn');
-}
-
-// ── Settings modal ────────────────────────────────────────────────
-function openModal()  { modalBackdrop.classList.add('open');    document.body.style.overflow = 'hidden'; }
-function closeModal() { modalBackdrop.classList.remove('open'); document.body.style.overflow = ''; }
-
-settingsBtn.addEventListener('click', openModal);
-modalClose.addEventListener('click', closeModal);
-modalBackdrop.addEventListener('click', e => { if (e.target === modalBackdrop) closeModal(); });
 
 // ── Boot ──────────────────────────────────────────────────────────
 initProxy();

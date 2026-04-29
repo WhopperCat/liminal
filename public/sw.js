@@ -8,9 +8,11 @@ const sw = new ScramjetServiceWorker();
 
 self.addEventListener('fetch', event => {
   event.respondWith(
-    sw.loadConfig().then(() => {
-      if (sw.route(event)) return sw.fetch(event);
-      return fetch(event.request);
-    })
+    sw.loadConfig()
+      .catch(() => {})
+      .then(() => {
+        if (sw.route(event)) return sw.fetch(event);
+        return fetch(event.request);
+      })
   );
 });

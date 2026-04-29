@@ -111,7 +111,7 @@ async function initProxy() {
     });
 
     setStatus('Registering service worker…');
-    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/scramjet/' });
+    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/scramjet/', updateViaCache: 'none' });
 
     await new Promise((resolve, reject) => {
       if (reg.active) { resolve(); return; }

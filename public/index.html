@@ -9,7 +9,13 @@
 </head>
 <body>
 
-  <!-- Browser chrome -->
+  <!-- Tab bar (above address bar) -->
+  <div id="tab-bar">
+    <div id="tabs"></div>
+    <button id="btn-add-tab" title="New tab">+</button>
+  </div>
+
+  <!-- Browser chrome (address bar) -->
   <div id="chrome">
     <div id="nav-btns">
       <button class="nav-btn" id="btn-back"   title="Back"    disabled>
@@ -55,11 +61,6 @@
 
     <p id="status"></p>
   </div>
-
-  <!-- Proxy frame -->
-  <iframe id="proxy-frame" hidden
-    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-pointer-lock allow-storage-access-by-user-activation allow-orientation-lock allow-presentation"
-  ></iframe>
 
   <script src="/scramjet/scramjet.all.js" defer></script>
   <script src="/baremux/index.js"         defer></script>

@@ -9,7 +9,9 @@
   --muted:    #666;
   --hover:    #1c1c1c;
   --active:   #252525;
+  --tab-h:    32px;
   --chrome-h: 40px;
+  --total-h:  calc(var(--tab-h) + var(--chrome-h));
 }
 
 html, body {
@@ -20,9 +22,74 @@ html, body {
   overflow: hidden;
 }
 
+/* ── Tab bar ─────────────────────────────────────────────────────── */
+#tab-bar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--tab-h);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-end;
+  padding: 0 6px 0;
+  z-index: 101;
+  gap: 2px;
+  overflow-x: auto;
+}
+#tab-bar::-webkit-scrollbar { display: none; }
+
+#tabs {
+  display: flex; align-items: flex-end; gap: 2px;
+  flex: 1; overflow: hidden;
+}
+
+.tab {
+  display: flex; align-items: center; gap: 4px;
+  height: 26px; min-width: 80px; max-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 0 6px 0 10px;
+  cursor: pointer;
+  flex-shrink: 1;
+  overflow: hidden;
+  transition: background .1s;
+}
+.tab:hover { background: var(--hover); }
+.tab.active { background: #1a1a1a; border-color: #3a3a3a; }
+
+.tab-title {
+  flex: 1;
+  font-size: 11px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--muted);
+  user-select: none;
+}
+.tab.active .tab-title { color: var(--text); }
+
+.tab-close {
+  width: 16px; height: 16px; flex-shrink: 0;
+  border: none; background: transparent;
+  color: var(--muted); cursor: pointer; border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; line-height: 1; padding: 0;
+  transition: background .1s, color .1s;
+}
+.tab-close:hover { background: #333; color: var(--text); }
+
+#btn-add-tab {
+  height: 24px; width: 24px; flex-shrink: 0;
+  border: none; background: transparent;
+  color: var(--muted); cursor: pointer; border-radius: 4px;
+  font-size: 20px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .1s, color .1s;
+  margin-bottom: 2px;
+}
+#btn-add-tab:hover { background: var(--hover); color: var(--text); }
+
 /* ── Browser chrome ──────────────────────────────────────────────── */
 #chrome {
-  position: fixed; top: 0; left: 0; right: 0;
+  position: fixed; top: var(--tab-h); left: 0; right: 0;
   height: var(--chrome-h);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -73,7 +140,7 @@ html, body {
 /* ── New-tab page ────────────────────────────────────────────────── */
 #new-tab {
   position: fixed;
-  top: var(--chrome-h); left: 0; right: 0; bottom: 0;
+  top: var(--total-h); left: 0; right: 0; bottom: 0;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   gap: 0;
@@ -134,10 +201,11 @@ html, body {
   min-height: 16px;
 }
 
-/* ── Proxy frame ─────────────────────────────────────────────────── */
-#proxy-frame {
+/* ── Proxy frames (created per-tab) ──────────────────────────────── */
+.proxy-frame {
   position: fixed;
-  top: var(--chrome-h); left: 0; right: 0; bottom: 0;
-  width: 100%; height: calc(100% - var(--chrome-h));
+  top: var(--total-h); left: 0; right: 0; bottom: 0;
+  width: 100%; height: calc(100% - var(--total-h));
   border: none;
+  display: none;
 }

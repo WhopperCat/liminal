@@ -392,6 +392,13 @@ function resetBareMuxDB() {
   });
 }
 
+function resetScramjetDB() {
+  return new Promise(resolve => {
+    const req = indexedDB.deleteDatabase('$scramjet');
+    req.onsuccess = req.onerror = resolve;
+  });
+}
+
 async function setTransport(wispUrl) {
   const attempt = async () => {
     try {
@@ -406,8 +413,7 @@ async function setTransport(wispUrl) {
   try {
     return await attempt();
   } catch (e) {
-    // Stale IndexedDB schema (e.g. "config is not a known object store") —
-    // wipe the database and retry with a fresh connection.
+    // Stale bare-mux IDB schema — wipe and retry with a fresh connection.
     if (String(e).includes('object store')) {
       console.warn('[axis] bare-mux IDB schema stale, resetting…', e);
       await resetBareMuxDB();
@@ -475,7 +481,18 @@ async function initProxy() {
         sync: '/scramjet/scramjet.sync.js',
       },
     });
-    await ctrl.init();
+    try {
+      await ctrl.init();
+    } catch (e) {
+      // Stale $scramjet IDB schema from a prior version — wipe and retry once.
+      if (String(e).includes('object store')) {
+        console.warn('[axis] $scramjet IDB schema stale, resetting…', e);
+        await resetScramjetDB();
+        await ctrl.init();
+      } else {
+        throw e;
+      }
+    }
     window.__axisCtrl = ctrl;
     transportReady = true;
     setStatus('');

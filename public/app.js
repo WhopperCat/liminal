@@ -2,27 +2,94 @@
 
 const $ = id => document.getElementById(id);
 
-const nav         = $('chrome');
-const btnBack     = $('btn-back');
-const btnFwd      = $('btn-fwd');
-const btnReload   = $('btn-reload');
-const btnHome     = $('btn-home');
-const chromeForm  = $('chrome-form');
-const urlBar      = $('url-bar');
-const newTab      = $('new-tab');
-const searchForm  = $('search-form');
-const searchInput = $('search-input');
-const statusEl    = $('status');
-const tabBarTabs  = $('tab-bar-tabs');
-const btnNewTab   = $('btn-new-tab');
+const nav           = $('chrome');
+const btnBack       = $('btn-back');
+const btnFwd        = $('btn-fwd');
+const btnReload     = $('btn-reload');
+const btnHome       = $('btn-home');
+const chromeForm    = $('chrome-form');
+const urlBar        = $('url-bar');
+const newTab        = $('new-tab');
+const searchForm    = $('search-form');
+const searchInput   = $('search-input');
+const statusEl      = $('status');
+const tabBarTabs    = $('tab-bar-tabs');
+const btnNewTab     = $('btn-new-tab');
+const bookmarksBar  = $('bookmarks-bar');
+const bookmarksList = $('bookmarks-list');
+const btnAddBm      = $('btn-add-bookmark');
+const btnMenu       = $('btn-menu');
+const settingsPanel = $('settings-panel');
+const settingsOverlay = $('settings-overlay');
+const btnSettingsClose = $('btn-settings-close');
+const btnStealthLaunch = $('btn-stealth-launch');
+const btnForceReload = $('btn-force-reload-proxy');
 
 const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
 const PUBLIC_WISP = 'wss://wisp.mercurywork.shop/wisp/';
-
-// Proxy prefix — must be narrow enough that scramjet's own static files
-// (/scramjet/scramjet.all.js etc.) are NOT under this path, otherwise the
-// SW intercepts them before they can load and the whole page breaks.
 const PROXY_PREFIX = '/scramjet/proxy/';
+
+const AXIS_FAVICON = "data:image/svg+xml," + encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'>` +
+  `<line x1='20' y1='34' x2='20' y2='6' stroke='white' stroke-width='2.5'/>` +
+  `<polygon points='20,3 17,9 23,9' fill='white'/>` +
+  `<line x1='6' y1='20' x2='34' y2='20' stroke='white' stroke-width='2.5'/>` +
+  `<polygon points='37,20 31,17 31,23' fill='white'/>` +
+  `<circle cx='20' cy='20' r='2.5' fill='white'/></svg>`
+);
+
+// ── Settings ──────────────────────────────────────────────────────
+const SEARCH_ENGINES = {
+  duckduckgo: q => 'https://duckduckgo.com/?q=' + encodeURIComponent(q),
+  google:     q => 'https://www.google.com/search?q=' + encodeURIComponent(q),
+  bing:       q => 'https://www.bing.com/search?q=' + encodeURIComponent(q),
+  brave:      q => 'https://search.brave.com/search?q=' + encodeURIComponent(q),
+  startpage:  q => 'https://www.startpage.com/search?q=' + encodeURIComponent(q),
+};
+
+function makeCloakFavicon(bg, letter) {
+  const fs = letter.length > 1 ? 13 : 20;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>` +
+    `<rect width='32' height='32' rx='5' fill='${bg}'/>` +
+    `<text x='16' y='23' font-size='${fs}' font-weight='bold' ` +
+    `text-anchor='middle' fill='white' font-family='system-ui,sans-serif'>${letter}</text></svg>`;
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+
+const TAB_CLOAKS = {
+  none:      { title: 'Axis',                      favicon: null },
+  canvas:    { title: 'Dashboard - Canvas',         favicon: makeCloakFavicon('#B4371E', 'C') },
+  gdrive:    { title: 'My Drive - Google Drive',    favicon: makeCloakFavicon('#4285F4', '◆') },
+  canva:     { title: 'Home - Canva',               favicon: makeCloakFavicon('#7D2AE7', 'c') },
+  classlink: { title: 'ClassLink Launchpad',        favicon: makeCloakFavicon('#0070C0', 'CL') },
+  blooket:   { title: 'Blooket',                    favicon: makeCloakFavicon('#1368CE', 'B') },
+  classroom: { title: 'Google Classroom',           favicon: makeCloakFavicon('#1EA446', '≡') },
+  docs:      { title: 'Untitled document - Google Docs', favicon: makeCloakFavicon('#4285F4', '≡') },
+};
+
+const DEFAULT_SETTINGS = {
+  theme: 'dark',
+  aboutBlankMode: false,
+  tabCloak: 'none',
+  bookmarksVisible: false,
+  bookmarks: [],
+  searchEngine: 'duckduckgo',
+  panicKey: '',
+  panicUrl: 'https://classroom.google.com',
+};
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem('axis-settings');
+    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS };
+  } catch (_) { return { ...DEFAULT_SETTINGS }; }
+}
+
+function saveSettings() {
+  try { localStorage.setItem('axis-settings', JSON.stringify(settings)); } catch (_) {}
+}
+
+let settings = loadSettings();
 
 // ── Tab management ────────────────────────────────────────────────
 let tabs = [];
@@ -49,7 +116,7 @@ function createTabIframe() {
 function openTab(url = null) {
   const id = nextTabId++;
   const iframe = createTabIframe();
-  const tab = { id, title: 'New Tab', url: '', iframe, frame: null };
+  const tab = { id, title: 'New Tab', url: '', iframe, frame: null, navCount: 0 };
   tabs.push(tab);
   activateTab(id);
   if (url) {
@@ -67,10 +134,7 @@ function closeTab(id) {
   tabs[idx].iframe.remove();
   tabs.splice(idx, 1);
 
-  if (tabs.length === 0) {
-    openTab();
-    return;
-  }
+  if (tabs.length === 0) { openTab(); return; }
 
   if (activeTabId === id) {
     activateTab(tabs[Math.min(idx, tabs.length - 1)].id);
@@ -96,7 +160,14 @@ function activateTab(id) {
     searchInput.value = '';
   }
 
+  updateNavButtons(tab);
   renderTabs();
+}
+
+function updateNavButtons(tab) {
+  if (!tab) { btnBack.disabled = true; btnFwd.disabled = true; return; }
+  btnBack.disabled = tab.navCount < 1;
+  btnFwd.disabled = true;
 }
 
 const PAGE_ICON = `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="1" width="10" height="12" rx="1.5"/><line x1="4.5" y1="4.5" x2="9.5" y2="4.5"/><line x1="4.5" y1="7" x2="9.5" y2="7"/><line x1="4.5" y1="9.5" x2="7.5" y2="9.5"/></svg>`;
@@ -134,13 +205,14 @@ function toUrl(s) {
   s = s.trim();
   if (/^https?:\/\//i.test(s)) return s;
   if (!s.includes(' ') && /^[a-z0-9-]+(\.[a-z]{2,})(\/.*)?$/i.test(s)) return 'https://' + s;
-  return 'https://duckduckgo.com/?q=' + encodeURIComponent(s);
+  const engine = SEARCH_ENGINES[settings.searchEngine] || SEARCH_ENGINES.duckduckgo;
+  return engine(s);
 }
 
 // ── Navigation ────────────────────────────────────────────────────
 function navigate(url) {
   const ctrl = window.__axisCtrl;
-  if (!ctrl) { setStatus('⚠ Proxy not ready.', true); return; }
+  if (!ctrl) { setStatus('⚠ Proxy not ready. Try reloading.', true); return; }
 
   const tab = getActiveTab();
   if (!tab) return;
@@ -153,31 +225,32 @@ function navigate(url) {
       try {
         const u = new URL(e.url);
         tab.title = u.hostname || 'Loading…';
-      } catch (_) {
-        tab.title = 'Loading…';
-      }
+      } catch (_) { tab.title = 'Loading…'; }
       renderTabs();
     });
   }
 
   tab.url = url;
+  tab.navCount++;
   tab.frame.go(url);
   urlBar.value = url;
 
-  try {
-    tab.title = new URL(url).hostname || 'Loading…';
-  } catch (_) {
-    tab.title = 'Loading…';
-  }
+  try { tab.title = new URL(url).hostname || 'Loading…'; }
+  catch (_) { tab.title = 'Loading…'; }
 
   newTab.hidden = true;
   tab.iframe.hidden = false;
+  updateNavButtons(tab);
   renderTabs();
 }
 
 // ── Chrome controls ───────────────────────────────────────────────
-btnBack.addEventListener('click', () => getActiveTab()?.frame?.back());
-btnFwd.addEventListener('click',  () => getActiveTab()?.frame?.forward());
+btnBack.addEventListener('click', () => {
+  const tab = getActiveTab();
+  if (tab?.frame) { tab.frame.back(); tab.navCount = Math.max(0, tab.navCount - 1); updateNavButtons(tab); }
+});
+
+btnFwd.addEventListener('click', () => getActiveTab()?.frame?.forward());
 
 btnReload.addEventListener('click', () => {
   const tab = getActiveTab();
@@ -190,10 +263,12 @@ btnHome.addEventListener('click', () => {
   if (!tab) return;
   tab.url = '';
   tab.title = 'New Tab';
+  tab.navCount = 0;
   tab.iframe.hidden = true;
   newTab.hidden = false;
   urlBar.value = '';
   searchInput.value = '';
+  updateNavButtons(tab);
   renderTabs();
   setTimeout(() => searchInput.focus(), 50);
 });
@@ -236,8 +311,6 @@ async function initProxy() {
   try {
     setStatus('Registering service worker…');
 
-    // Remove any old SW registrations with the wrong scope (e.g. /scramjet/)
-    // so they can't hold open IDB connections or intercept static assets.
     for (const reg of await navigator.serviceWorker.getRegistrations()) {
       if (!reg.scope.endsWith(PROXY_PREFIX)) await reg.unregister();
     }
@@ -257,7 +330,6 @@ async function initProxy() {
       });
     });
 
-    // Check for SW updates every 30 min and on tab focus
     setInterval(() => reg.update(), 30 * 60 * 1000);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') reg.update();
@@ -281,8 +353,6 @@ async function initProxy() {
       },
     });
 
-    // If ctrl.init() fails because IDB was previously created without its
-    // object stores (race from old /scramjet/ scope), delete it and retry.
     try {
       await ctrl.init();
     } catch (e) {
@@ -305,18 +375,242 @@ async function initProxy() {
   }
 }
 
+async function forceReloadProxy() {
+  setStatus('Clearing proxy cache…');
+  for (const reg of await navigator.serviceWorker.getRegistrations()) {
+    if (reg.scope.includes(PROXY_PREFIX)) await reg.unregister();
+  }
+  await new Promise(resolve => {
+    const r = indexedDB.deleteDatabase('$scramjet');
+    r.onsuccess = r.onerror = r.onblocked = resolve;
+  });
+  window.location.reload(true);
+}
+
 function setStatus(msg, warn = false) {
   statusEl.textContent = msg;
   statusEl.style.color = warn ? '#f66' : '#555';
 }
 
+// ── Bookmarks ─────────────────────────────────────────────────────
+function renderBookmarks() {
+  bookmarksList.innerHTML = '';
+  for (const bm of settings.bookmarks) {
+    const item = document.createElement('button');
+    item.className = 'bookmark-item';
+    item.title = bm.url;
+
+    const fav = document.createElement('span');
+    fav.className = 'bm-favicon';
+    fav.innerHTML = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><rect x="1" y="1" width="10" height="10" rx="1.5"/><line x1="3.5" y1="4" x2="8.5" y2="4"/><line x1="3.5" y1="6.5" x2="6.5" y2="6.5"/></svg>`;
+
+    const titleEl = document.createElement('span');
+    titleEl.className = 'bm-title';
+    titleEl.textContent = bm.title;
+
+    const remove = document.createElement('span');
+    remove.className = 'bm-remove';
+    remove.textContent = '×';
+    remove.title = 'Remove bookmark';
+    remove.addEventListener('click', e => {
+      e.stopPropagation();
+      settings.bookmarks = settings.bookmarks.filter(b => b.id !== bm.id);
+      saveSettings();
+      renderBookmarks();
+    });
+
+    item.appendChild(fav);
+    item.appendChild(titleEl);
+    item.appendChild(remove);
+    item.addEventListener('click', () => navigate(bm.url));
+    bookmarksList.appendChild(item);
+  }
+}
+
+btnAddBm.addEventListener('click', () => {
+  const tab = getActiveTab();
+  if (!tab?.url) return;
+  const url = tab.url;
+  if (settings.bookmarks.some(b => b.url === url)) return;
+  const title = tab.title || (() => { try { return new URL(url).hostname; } catch (_) { return url; } })();
+  settings.bookmarks.push({ id: Date.now(), title, url });
+  saveSettings();
+  renderBookmarks();
+});
+
+// ── Settings panel ────────────────────────────────────────────────
+function openSettings() {
+  settingsPanel.classList.add('open');
+  settingsOverlay.classList.add('open');
+  syncSettingsPanel();
+}
+
+function closeSettings() {
+  settingsPanel.classList.remove('open');
+  settingsOverlay.classList.remove('open');
+}
+
+function syncSettingsPanel() {
+  // Theme buttons
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.theme === settings.theme);
+  });
+
+  // Cloak buttons
+  document.querySelectorAll('.cloak-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.cloak === settings.tabCloak);
+  });
+
+  // Toggles
+  $('toggle-about-blank').checked = settings.aboutBlankMode;
+  $('toggle-bookmarks').checked   = settings.bookmarksVisible;
+
+  // Selects
+  $('select-search-engine').value = settings.searchEngine;
+  $('select-panic-key').value     = settings.panicKey;
+
+  // Inputs
+  $('input-panic-url').value = settings.panicUrl;
+}
+
+btnMenu.addEventListener('click', openSettings);
+btnSettingsClose.addEventListener('click', closeSettings);
+settingsOverlay.addEventListener('click', closeSettings);
+
+// Theme buttons
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    settings.theme = btn.dataset.theme;
+    saveSettings();
+    applyTheme();
+    syncSettingsPanel();
+  });
+});
+
+// Cloak buttons
+document.querySelectorAll('.cloak-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    settings.tabCloak = btn.dataset.cloak;
+    saveSettings();
+    applyTabCloak();
+    syncSettingsPanel();
+  });
+});
+
+$('toggle-about-blank').addEventListener('change', e => {
+  settings.aboutBlankMode = e.target.checked;
+  saveSettings();
+});
+
+$('toggle-bookmarks').addEventListener('change', e => {
+  settings.bookmarksVisible = e.target.checked;
+  saveSettings();
+  applyBookmarksBar();
+});
+
+$('select-search-engine').addEventListener('change', e => {
+  settings.searchEngine = e.target.value;
+  saveSettings();
+});
+
+$('select-panic-key').addEventListener('change', e => {
+  settings.panicKey = e.target.value;
+  saveSettings();
+});
+
+$('input-panic-url').addEventListener('input', e => {
+  settings.panicUrl = e.target.value;
+  saveSettings();
+});
+
+btnForceReload.addEventListener('click', forceReloadProxy);
+
+// ── Apply settings ────────────────────────────────────────────────
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', settings.theme || 'dark');
+}
+
+function applyTabCloak() {
+  const cloak = TAB_CLOAKS[settings.tabCloak] || TAB_CLOAKS.none;
+  document.title = cloak.title;
+  const fav = $('favicon');
+  if (fav) fav.href = cloak.favicon || AXIS_FAVICON;
+}
+
+function applyBookmarksBar() {
+  const visible = settings.bookmarksVisible;
+  document.documentElement.style.setProperty('--bookmarks-h', visible ? '28px' : '0px');
+  bookmarksBar.classList.toggle('visible', visible);
+}
+
+function applyAllSettings() {
+  applyTheme();
+  applyTabCloak();
+  applyBookmarksBar();
+  renderBookmarks();
+}
+
+// ── About:blank launcher ──────────────────────────────────────────
+function tryAboutBlankLaunch() {
+  if (!settings.aboutBlankMode) return;
+  if (window !== window.top) return;
+  if (sessionStorage.getItem('axis-ab-done')) return;
+
+  sessionStorage.setItem('axis-ab-done', '1');
+
+  const src = location.href;
+  const w = window.open('about:blank', '_blank');
+  if (!w) {
+    // Popup blocked — show manual launch button
+    btnStealthLaunch.style.display = 'flex';
+    return;
+  }
+
+  w.document.write(
+    `<!DOCTYPE html><html><head><title></title>` +
+    `<style>*{margin:0;padding:0}html,body,iframe{display:block;width:100%;height:100%;border:none;overflow:hidden}</style>` +
+    `</head><body><iframe src="${src}"></iframe></body></html>`
+  );
+  w.document.close();
+
+  // Let user know this tab can be closed
+  document.body.innerHTML =
+    `<div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;` +
+    `background:#000;color:#fff;font-family:system-ui,sans-serif;gap:10px">` +
+    `<p style="font-size:18px;opacity:0.6">Stealth tab opened.</p>` +
+    `<p style="font-size:13px;color:#444">You can close this tab.</p>` +
+    `</div>`;
+}
+
+btnStealthLaunch.addEventListener('click', () => {
+  const src = location.href;
+  const w = window.open('about:blank', '_blank');
+  if (!w) return;
+  w.document.write(
+    `<!DOCTYPE html><html><head><title></title>` +
+    `<style>*{margin:0;padding:0}html,body,iframe{display:block;width:100%;height:100%;border:none;overflow:hidden}</style>` +
+    `</head><body><iframe src="${src}"></iframe></body></html>`
+  );
+  w.document.close();
+  btnStealthLaunch.style.display = 'none';
+});
+
+// ── Panic key ─────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+  if (!settings.panicKey || e.key !== settings.panicKey) return;
+  if (settingsPanel.classList.contains('open')) { closeSettings(); return; }
+  const url = settings.panicUrl || 'https://classroom.google.com';
+  window.location.replace(url);
+});
+
 // ── Boot ──────────────────────────────────────────────────────────
-// Auto-update: reload when an existing SW is replaced by a newer one.
-// prevController is null on first install, so we skip the reload then.
 const prevController = navigator.serviceWorker?.controller ?? null;
 navigator.serviceWorker?.addEventListener('controllerchange', () => {
   if (prevController) window.location.reload();
 });
 
+applyAllSettings();
+tryAboutBlankLaunch();
 openTab();
 initProxy();

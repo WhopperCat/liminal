@@ -13,7 +13,8 @@ const newTab      = $('new-tab');
 const searchForm  = $('search-form');
 const searchInput = $('search-input');
 const statusEl    = $('status');
-const proxyFrame  = $('proxy-frame');
+const tabBarTabs  = $('tab-bar-tabs');
+const btnNewTab   = $('btn-new-tab');
 
 const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
 const PUBLIC_WISP = 'wss://wisp.mercurywork.shop/wisp/';
@@ -23,8 +24,110 @@ const PUBLIC_WISP = 'wss://wisp.mercurywork.shop/wisp/';
 // SW intercepts them before they can load and the whole page breaks.
 const PROXY_PREFIX = '/scramjet/proxy/';
 
-let axisFrame = null;   // ScramjetFrame instance
-let browsing  = false;
+// ── Tab management ────────────────────────────────────────────────
+let tabs = [];
+let activeTabId = null;
+let nextTabId = 0;
+
+function getActiveTab() {
+  return tabs.find(t => t.id === activeTabId) ?? null;
+}
+
+function createTabIframe() {
+  const iframe = document.createElement('iframe');
+  iframe.className = 'proxy-frame';
+  iframe.hidden = true;
+  iframe.setAttribute('sandbox',
+    'allow-same-origin allow-scripts allow-forms allow-popups allow-modals ' +
+    'allow-pointer-lock allow-storage-access-by-user-activation ' +
+    'allow-orientation-lock allow-presentation'
+  );
+  document.body.appendChild(iframe);
+  return iframe;
+}
+
+function openTab(url = null) {
+  const id = nextTabId++;
+  const iframe = createTabIframe();
+  const tab = { id, title: 'New Tab', url: '', iframe, frame: null };
+  tabs.push(tab);
+  activateTab(id);
+  if (url) {
+    navigate(url);
+  } else {
+    searchInput.value = '';
+    setTimeout(() => searchInput.focus(), 50);
+  }
+  return tab;
+}
+
+function closeTab(id) {
+  const idx = tabs.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  tabs[idx].iframe.remove();
+  tabs.splice(idx, 1);
+
+  if (tabs.length === 0) {
+    openTab();
+    return;
+  }
+
+  if (activeTabId === id) {
+    activateTab(tabs[Math.min(idx, tabs.length - 1)].id);
+  } else {
+    renderTabs();
+  }
+}
+
+function activateTab(id) {
+  for (const t of tabs) t.iframe.hidden = true;
+  newTab.hidden = true;
+
+  activeTabId = id;
+  const tab = tabs.find(t => t.id === id);
+  if (!tab) { renderTabs(); return; }
+
+  if (tab.url) {
+    tab.iframe.hidden = false;
+    urlBar.value = tab.url;
+  } else {
+    newTab.hidden = false;
+    urlBar.value = '';
+    searchInput.value = '';
+  }
+
+  renderTabs();
+}
+
+const PAGE_ICON = `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="1" width="10" height="12" rx="1.5"/><line x1="4.5" y1="4.5" x2="9.5" y2="4.5"/><line x1="4.5" y1="7" x2="9.5" y2="7"/><line x1="4.5" y1="9.5" x2="7.5" y2="9.5"/></svg>`;
+
+function renderTabs() {
+  tabBarTabs.innerHTML = '';
+  for (const tab of tabs) {
+    const el = document.createElement('div');
+    el.className = 'tab' + (tab.id === activeTabId ? ' active' : '');
+
+    const fav = document.createElement('div');
+    fav.className = 'tab-favicon';
+    fav.innerHTML = PAGE_ICON;
+
+    const title = document.createElement('span');
+    title.className = 'tab-title';
+    title.textContent = tab.title;
+
+    const close = document.createElement('button');
+    close.className = 'tab-close';
+    close.title = 'Close tab';
+    close.innerHTML = `<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/></svg>`;
+    close.addEventListener('click', e => { e.stopPropagation(); closeTab(tab.id); });
+
+    el.appendChild(fav);
+    el.appendChild(title);
+    el.appendChild(close);
+    el.addEventListener('click', () => activateTab(tab.id));
+    tabBarTabs.appendChild(el);
+  }
+}
 
 // ── URL helpers ───────────────────────────────────────────────────
 function toUrl(s) {
@@ -34,46 +137,68 @@ function toUrl(s) {
   return 'https://duckduckgo.com/?q=' + encodeURIComponent(s);
 }
 
-// ── View switching ────────────────────────────────────────────────
-function showBrowsing() {
-  newTab.hidden   = true;
-  proxyFrame.hidden = false;
-  browsing = true;
-}
-
-function showNewTab() {
-  newTab.hidden   = false;
-  proxyFrame.hidden = true;
-  browsing = false;
-  urlBar.value = '';
-  setTimeout(() => searchInput.focus(), 50);
-}
-
 // ── Navigation ────────────────────────────────────────────────────
 function navigate(url) {
   const ctrl = window.__axisCtrl;
   if (!ctrl) { setStatus('⚠ Proxy not ready.', true); return; }
 
-  if (!axisFrame) {
-    axisFrame = ctrl.createFrame(proxyFrame);
-    axisFrame.addEventListener('urlchange', e => {
-      urlBar.value = e.url;
+  const tab = getActiveTab();
+  if (!tab) return;
+
+  if (!tab.frame) {
+    tab.frame = ctrl.createFrame(tab.iframe);
+    tab.frame.addEventListener('urlchange', e => {
+      tab.url = e.url;
+      if (tab.id === activeTabId) urlBar.value = e.url;
+      try {
+        const u = new URL(e.url);
+        tab.title = u.hostname || 'Loading…';
+      } catch (_) {
+        tab.title = 'Loading…';
+      }
+      renderTabs();
     });
   }
 
-  axisFrame.go(url);
+  tab.url = url;
+  tab.frame.go(url);
   urlBar.value = url;
-  showBrowsing();
+
+  try {
+    tab.title = new URL(url).hostname || 'Loading…';
+  } catch (_) {
+    tab.title = 'Loading…';
+  }
+
+  newTab.hidden = true;
+  tab.iframe.hidden = false;
+  renderTabs();
 }
 
 // ── Chrome controls ───────────────────────────────────────────────
-btnBack.addEventListener('click', () => axisFrame?.back());
-btnFwd.addEventListener('click',  () => axisFrame?.forward());
+btnBack.addEventListener('click', () => getActiveTab()?.frame?.back());
+btnFwd.addEventListener('click',  () => getActiveTab()?.frame?.forward());
+
 btnReload.addEventListener('click', () => {
-  if (browsing) axisFrame?.reload();
+  const tab = getActiveTab();
+  if (tab?.url) tab.frame?.reload();
   else initProxy();
 });
-btnHome.addEventListener('click', showNewTab);
+
+btnHome.addEventListener('click', () => {
+  const tab = getActiveTab();
+  if (!tab) return;
+  tab.url = '';
+  tab.title = 'New Tab';
+  tab.iframe.hidden = true;
+  newTab.hidden = false;
+  urlBar.value = '';
+  searchInput.value = '';
+  renderTabs();
+  setTimeout(() => searchInput.focus(), 50);
+});
+
+btnNewTab.addEventListener('click', () => openTab());
 
 chromeForm.addEventListener('submit', e => {
   e.preventDefault();
@@ -139,8 +264,8 @@ async function initProxy() {
     });
 
     setStatus('Setting up transport…');
-    const localWisp  = `wss://${location.host}/wisp/`;
-    const wispUrl    = (await checkWisp(localWisp)) ? localWisp : PUBLIC_WISP;
+    const localWisp = `wss://${location.host}/wisp/`;
+    const wispUrl   = (await checkWisp(localWisp)) ? localWisp : PUBLIC_WISP;
 
     await conn.setTransport('/epoxy/index.mjs', [{ wisp: wispUrl }]);
     setStatus('Transport: epoxy');
@@ -193,5 +318,5 @@ navigator.serviceWorker?.addEventListener('controllerchange', () => {
   if (prevController) window.location.reload();
 });
 
+openTab();
 initProxy();
-window.addEventListener('load', () => searchInput.focus());

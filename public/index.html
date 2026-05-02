@@ -9,6 +9,14 @@
 </head>
 <body>
 
+  <!-- Tab bar -->
+  <div id="tab-bar">
+    <div id="tab-bar-tabs"></div>
+    <button id="btn-new-tab" title="New tab">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>
+    </button>
+  </div>
+
   <!-- Browser chrome -->
   <div id="chrome">
     <div id="nav-btns">
@@ -21,7 +29,7 @@
       <button class="nav-btn" id="btn-reload" title="Reload">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M13 2.5A6.5 6.5 0 1 1 6.5 1.5"/><polyline points="13,1 13,4 10,4"/></svg>
       </button>
-      <button class="nav-btn" id="btn-home"   title="New tab">
+      <button class="nav-btn" id="btn-home"   title="Home">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L1 7h2v7h4v-4h2v4h4V7h2L8 1z"/></svg>
       </button>
     </div>
@@ -55,11 +63,6 @@
 
     <p id="status"></p>
   </div>
-
-  <!-- Proxy frame -->
-  <iframe id="proxy-frame" hidden
-    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-pointer-lock allow-storage-access-by-user-activation allow-orientation-lock allow-presentation"
-  ></iframe>
 
   <script src="/scramjet/scramjet.all.js" defer></script>
   <script src="/baremux/index.js"         defer></script>

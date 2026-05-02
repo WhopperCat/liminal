@@ -597,6 +597,7 @@ btnStealthLaunch.addEventListener('click', () => {
 
 // ── Panic key ─────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
   if (!settings.panicKey || e.key !== settings.panicKey) return;
   if (settingsPanel.classList.contains('open')) { closeSettings(); return; }
   const url = settings.panicUrl || 'https://classroom.google.com';

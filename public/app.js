@@ -378,7 +378,7 @@ async function initProxy() {
 async function forceReloadProxy() {
   setStatus('Clearing proxy cache…');
   for (const reg of await navigator.serviceWorker.getRegistrations()) {
-    await reg.unregister();
+    if (reg.scope.includes(PROXY_PREFIX)) await reg.unregister();
   }
   await new Promise(resolve => {
     const r = indexedDB.deleteDatabase('$scramjet');

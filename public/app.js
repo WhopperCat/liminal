@@ -24,13 +24,13 @@ const btnDevtools      = $('btn-devtools');
 const settingsOverlay  = $('settings-overlay');
 const btnSettingsClose = $('btn-settings-close');
 const btnStealthLaunch = $('btn-stealth-launch');
-const btnForceReload = $('btn-force-reload-proxy');
+const btnForceReload = $('btn-force-reload');
 
 const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
 const PUBLIC_WISP = 'wss://wisp.mercurywork.shop/wisp/';
-const PROXY_PREFIX    = '/scramjet/proxy/';
-const PROXY_PREFIX_V2 = '/scramjet2/proxy/';
-const PROXY_PREFIX_UV = '/uv/service/';
+const SVC_PREFIX    = '/scramjet/service/';
+const SVC_PREFIX_V2 = '/scramjet2/service/';
+const SVC_PREFIX_UV = '/uv/service/';
 
 const AXIS_FAVICON = "data:image/svg+xml," + encodeURIComponent(
   `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'>` +
@@ -76,7 +76,7 @@ const DEFAULT_SETTINGS = {
   panicKey: '',
   panicUrl: 'https://classroom.google.com',
   erudaEnabled: false,
-  proxyEngine: 'scramjet',
+  engine: 'scramjet',
 };
 
 function loadSettings() {
@@ -104,7 +104,7 @@ function getActiveTab() {
 
 function createTabIframe() {
   const iframe = document.createElement('iframe');
-  iframe.className = 'proxy-frame';
+  iframe.className = 'nav-frame';
   iframe.hidden = true;
   iframe.setAttribute('sandbox',
     'allow-same-origin allow-scripts allow-forms allow-popups allow-modals ' +
@@ -253,7 +253,7 @@ function navigate(url) {
   const ctrl = window.__axisCtrl;
   if (!ctrl) {
     pendingUrl = url;
-    setStatus('Proxy loading, will navigate when ready…');
+    setStatus('Loading, will navigate when ready…');
     // Still update UI so user sees something is happening
     const tab = getActiveTab();
     if (tab) { urlBar.value = url; }
@@ -338,7 +338,7 @@ btnFwd.addEventListener('click', () => {
 btnReload.addEventListener('click', () => {
   const tab = getActiveTab();
   if (tab?.url) tab.frame?.reload();
-  else initProxy();
+  else initEngine();
 });
 
 btnHome.addEventListener('click', () => {
@@ -384,13 +384,13 @@ function checkWisp(url) {
   });
 }
 
-// ── Proxy init ────────────────────────────────────────────────────
+// ── Engine init ───────────────────────────────────────────────────
 
-function activeProxyPrefix() {
-  const engine = settings.proxyEngine || 'scramjet';
-  if (engine === 'scramjet2')   return PROXY_PREFIX_V2;
-  if (engine === 'ultraviolet') return PROXY_PREFIX_UV;
-  return PROXY_PREFIX;
+function activeSvcPrefix() {
+  const engine = settings.engine || 'scramjet';
+  if (engine === 'scramjet2')   return SVC_PREFIX_V2;
+  if (engine === 'ultraviolet') return SVC_PREFIX_UV;
+  return SVC_PREFIX;
 }
 
 async function registerSW(swPath, scope) {
@@ -421,12 +421,12 @@ async function setupTransport() {
   return wispUrl;
 }
 
-async function initProxy(attempt = 1) {
+async function initEngine(attempt = 1) {
   if (!('serviceWorker' in navigator)) {
     setStatus('⚠ Service workers not supported.', true);
     return;
   }
-  const engine = settings.proxyEngine || 'scramjet';
+  const engine = settings.engine || 'scramjet';
   try {
     if (engine === 'ultraviolet') {
       await initUV(attempt);
@@ -439,12 +439,12 @@ async function initProxy(attempt = 1) {
     console.error(`[axis] init failed (attempt ${attempt}):`, e);
     if (attempt < 3) {
       const delay = attempt * 2000;
-      setStatus(`⚠ Proxy error, retrying in ${delay / 1000}s…`, true);
-      setTimeout(() => initProxy(attempt + 1), delay);
+      setStatus(`⚠ Error, retrying in ${delay / 1000}s…`, true);
+      setTimeout(() => initEngine(attempt + 1), delay);
     } else if (!sessionStorage.getItem('axis-sw-fix-attempted')) {
       sessionStorage.setItem('axis-sw-fix-attempted', '1');
-      setStatus('Refreshing proxy…');
-      await forceReloadProxy();
+      setStatus('Refreshing…');
+      await forceReload();
     } else {
       sessionStorage.removeItem('axis-sw-fix-attempted');
       setStatus('⚠ ' + e.message, true);
@@ -454,7 +454,7 @@ async function initProxy(attempt = 1) {
 
 async function initScramjet(attempt = 1) {
   setStatus('Registering service worker…');
-  const reg = await registerSW('/sw.js', PROXY_PREFIX);
+  const reg = await registerSW('/sw.js', SVC_PREFIX);
 
   if (attempt === 1) {
     setInterval(() => reg.update(), 30 * 60 * 1000);
@@ -464,11 +464,11 @@ async function initScramjet(attempt = 1) {
   }
 
   await setupTransport();
-  setStatus('Starting proxy engine…');
+  setStatus('Starting engine…');
 
   const { ScramjetController } = $scramjetLoadController();
   const ctrl = new ScramjetController({
-    prefix: PROXY_PREFIX,
+    prefix: SVC_PREFIX,
     files: {
       wasm: '/scramjet/scramjet.wasm.wasm',
       all:  '/scramjet/scramjet.all.js',
@@ -503,7 +503,7 @@ async function initScramjet(attempt = 1) {
 
 async function initScramjet2(attempt = 1) {
   setStatus('Registering service worker (Scramjet v2)…');
-  const reg = await registerSW('/sw-scramjet2.js', PROXY_PREFIX_V2);
+  const reg = await registerSW('/sw-scramjet2.js', SVC_PREFIX_V2);
 
   if (attempt === 1) {
     setInterval(() => reg.update(), 30 * 60 * 1000);
@@ -518,9 +518,9 @@ async function initScramjet2(attempt = 1) {
   // v2 uses ScramjetFrame for per-tab navigation instead of a shared controller.
   // Provide a controller-compatible shim so navigate() works unchanged.
   window.__axisCtrl = {
-    _prefix: PROXY_PREFIX_V2,
+    _prefix: SVC_PREFIX_V2,
     createFrame(iframe) {
-      return new AxisScramjet2Frame(iframe, PROXY_PREFIX_V2);
+      return new AxisScramjet2Frame(iframe, SVC_PREFIX_V2);
     },
   };
 
@@ -544,7 +544,7 @@ async function initUV(attempt = 1) {
   }
 
   setStatus('Registering service worker (Ultraviolet)…');
-  const reg = await registerSW('/sw-uv.js', PROXY_PREFIX_UV);
+  const reg = await registerSW('/sw-uv.js', SVC_PREFIX_UV);
 
   if (attempt === 1) {
     setInterval(() => reg.update(), 30 * 60 * 1000);
@@ -557,7 +557,7 @@ async function initUV(attempt = 1) {
   setStatus('Starting Ultraviolet…');
 
   window.__axisCtrl = {
-    _prefix: PROXY_PREFIX_UV,
+    _prefix: SVC_PREFIX_UV,
     createFrame(iframe) {
       return new AxisUVFrame(iframe);
     },
@@ -626,8 +626,8 @@ class AxisUVFrame {
   _onLoad() {
     try {
       const href = this._iframe.contentWindow?.location.href;
-      if (href && window.__uv$config && href.includes(PROXY_PREFIX_UV)) {
-        const encoded = href.split(PROXY_PREFIX_UV)[1];
+      if (href && window.__uv$config && href.includes(SVC_PREFIX_UV)) {
+        const encoded = href.split(SVC_PREFIX_UV)[1];
         if (encoded) {
           const decoded = window.__uv$config.decodeUrl(encoded.split('?')[0]);
           this._listeners.urlchange?.forEach(fn => fn({ url: decoded }));
@@ -637,7 +637,7 @@ class AxisUVFrame {
   }
   go(url) {
     if (!window.__uv$config) { this._iframe.src = url; return; }
-    this._iframe.src = PROXY_PREFIX_UV + window.__uv$config.encodeUrl(url);
+    this._iframe.src = SVC_PREFIX_UV + window.__uv$config.encodeUrl(url);
   }
   reload() { this._iframe.contentWindow?.location.reload(); }
   back()    { this._iframe.contentWindow?.history.back(); }
@@ -647,8 +647,8 @@ class AxisUVFrame {
   }
 }
 
-async function forceReloadProxy() {
-  setStatus('Clearing proxy cache…');
+async function forceReload() {
+  setStatus('Clearing cache…');
   for (const reg of await navigator.serviceWorker.getRegistrations()) {
     await reg.unregister();
   }
@@ -749,7 +749,7 @@ function syncSettingsPanel() {
 
   // Engine buttons
   document.querySelectorAll('.engine-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.engine === (settings.proxyEngine || 'scramjet'));
+    btn.classList.toggle('active', btn.dataset.engine === (settings.engine || 'scramjet'));
   });
 
   // Toggles
@@ -767,12 +767,12 @@ function syncSettingsPanel() {
   $('toggle-eruda').checked = settings.erudaEnabled;
 }
 
-const PROXY_BASE = 'https://dj9js1p9rozzq.cloudfront.net';
+const SITE_BASE = 'https://dj9js1p9rozzq.cloudfront.net';
 
 btnOpenTab.addEventListener('click', () => {
   const url = getActiveTab()?.url || urlBar.value.trim();
   if (!url) return;
-  window.open(PROXY_BASE + PROXY_PREFIX + encodeURIComponent(url), '_blank');
+  window.open(SITE_BASE + SVC_PREFIX + encodeURIComponent(url), '_blank');
 });
 
 btnMenu.addEventListener('click', openSettings);
@@ -804,10 +804,10 @@ document.querySelectorAll('.cloak-btn').forEach(btn => {
 // Engine buttons
 document.querySelectorAll('.engine-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    settings.proxyEngine = btn.dataset.engine;
+    settings.engine = btn.dataset.engine;
     saveSettings();
     syncSettingsPanel();
-    initProxy();
+    initEngine();
   });
 });
 
@@ -837,7 +837,7 @@ $('input-panic-url').addEventListener('input', e => {
   saveSettings();
 });
 
-btnForceReload.addEventListener('click', forceReloadProxy);
+btnForceReload.addEventListener('click', forceReload);
 
 $('toggle-eruda').addEventListener('change', e => {
   settings.erudaEnabled = e.target.checked;
@@ -947,4 +947,4 @@ navigator.serviceWorker?.addEventListener('controllerchange', () => {
 applyAllSettings();
 handleAboutBlankResult();
 openTab();
-initProxy();
+initEngine();

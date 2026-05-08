@@ -415,8 +415,8 @@ html, body {
 .stealth-launch-btn svg { width: 15px; height: 15px; }
 .stealth-launch-btn:hover { background: var(--hover); border-color: var(--accent); }
 
-/* ── Proxy frames ────────────────────────────────────────────────── */
-.proxy-frame {
+/* ── Nav frames ──────────────────────────────────────────────────── */
+.nav-frame {
   position: fixed;
   top: var(--total-h); left: 0; right: 0; bottom: 0;
   width: 100%; height: calc(100% - var(--total-h));

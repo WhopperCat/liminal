@@ -3,7 +3,7 @@ self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 
 importScripts('/scramjet2/scramjet_bundled.js');
 
-const PROXY_PREFIX = '/scramjet2/proxy/';
+const SVC_PREFIX = '/scramjet2/service/';
 
 let _handler = null;
 let _wasmLoaded = false;
@@ -23,7 +23,7 @@ async function ensureHandler() {
   }
 
   const context = {
-    prefix: new URL(PROXY_PREFIX, self.location.origin),
+    prefix: new URL(SVC_PREFIX, self.location.origin),
     cookieJar: new $scramjet.CookieJar(),
     ...$scramjet.defaultConfig,
   };
@@ -33,7 +33,7 @@ async function ensureHandler() {
 }
 
 self.addEventListener('fetch', event => {
-  if (!event.request.url.startsWith(self.location.origin + PROXY_PREFIX)) return;
+  if (!event.request.url.startsWith(self.location.origin + SVC_PREFIX)) return;
 
   event.respondWith(
     (async () => {

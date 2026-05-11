@@ -18,7 +18,7 @@ async function ensureHandler() {
       await $scramjet.setWasm(wasmBytes);
       _wasmLoaded = true;
     } catch (e) {
-      console.warn('[axis sw-v2] WASM load failed, continuing without it:', e);
+      console.warn('[bardo sw-v2] WASM load failed, continuing without it:', e);
     }
   }
 
@@ -54,7 +54,7 @@ self.addEventListener('fetch', event => {
         };
         return await handler.handleFetch(req);
       } catch (e) {
-        console.error('[axis sw-v2] error:', e);
+        console.error('[bardo sw-v2] error:', e);
         return new Response('Scramjet v2 error: ' + e.message, { status: 500 });
       }
     })()

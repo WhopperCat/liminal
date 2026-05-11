@@ -1,7 +1,7 @@
 {
-  "name": "axis",
+  "name": "bardo",
   "version": "1.0.0",
-  "description": "Axis — a web proxy by Liminal",
+  "description": "Bardo — a web proxy by Liminal",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

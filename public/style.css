@@ -746,9 +746,12 @@ html, body {
 }
 [data-tabs="bottom"] #new-tab,
 [data-tabs="bottom"] .nav-frame {
+  left: 0;
+  right: 0;
   top: calc(var(--chrome-h) + var(--bookmarks-h));
   bottom: var(--tabs-h);
-  height: auto;
+  width: 100%;
+  height: calc(100% - var(--chrome-h) - var(--bookmarks-h) - var(--tabs-h));
 }
 [data-tabs="bottom"] .tab.active {
   border-bottom: none;
@@ -810,9 +813,11 @@ html, body {
 [data-tabs="left"] #new-tab,
 [data-tabs="left"] .nav-frame {
   left: var(--tabs-w);
+  right: 0;
   top: calc(var(--chrome-h) + var(--bookmarks-h));
-  width: auto;
-  height: auto;
+  bottom: 0;
+  width: calc(100% - var(--tabs-w));
+  height: calc(100% - var(--chrome-h) - var(--bookmarks-h));
 }
 
 /* ── Layout: right vertical tabs ─────────────────────────────────── */
@@ -876,6 +881,7 @@ html, body {
   right: var(--tabs-w);
   left: 0;
   top: calc(var(--chrome-h) + var(--bookmarks-h));
-  width: auto;
-  height: auto;
+  bottom: 0;
+  width: calc(100% - var(--tabs-w));
+  height: calc(100% - var(--chrome-h) - var(--bookmarks-h));
 }

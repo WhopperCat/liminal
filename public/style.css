@@ -751,7 +751,7 @@ html, body {
   top: calc(var(--chrome-h) + var(--bookmarks-h));
   bottom: var(--tabs-h);
   width: 100%;
-  height: calc(100% - var(--chrome-h) - var(--bookmarks-h) - var(--tabs-h));
+  height: calc(100% - var(--total-h));
 }
 [data-tabs="bottom"] .tab.active {
   border-bottom: none;

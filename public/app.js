@@ -1,4 +1,4 @@
-/* Axis — app.js */
+/* Bardo — app.js */
 
 const $ = id => document.getElementById(id);
 
@@ -32,13 +32,10 @@ const SVC_PREFIX    = '/scramjet/service/';
 const SVC_PREFIX_V2 = '/scramjet2/service/';
 const SVC_PREFIX_UV = '/uv/service/';
 
-const AXIS_FAVICON = "data:image/svg+xml," + encodeURIComponent(
+const BARDO_FAVICON = "data:image/svg+xml," + encodeURIComponent(
   `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'>` +
-  `<line x1='20' y1='34' x2='20' y2='6' stroke='white' stroke-width='2.5'/>` +
-  `<polygon points='20,3 17,9 23,9' fill='white'/>` +
-  `<line x1='6' y1='20' x2='34' y2='20' stroke='white' stroke-width='2.5'/>` +
-  `<polygon points='37,20 31,17 31,23' fill='white'/>` +
-  `<circle cx='20' cy='20' r='2.5' fill='white'/></svg>`
+  `<path d='M8 34 L8 19 Q8 6 20 6 Q32 6 32 19 L32 34' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round'/>` +
+  `<line x1='4' y1='34' x2='36' y2='34' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>`
 );
 
 // ── Settings ──────────────────────────────────────────────────────
@@ -56,7 +53,7 @@ function gFav(domain) {
 }
 
 const TAB_CLOAKS = {
-  none:      { title: 'Axis',                           favicon: null },
+  none:      { title: 'Bardo',                          favicon: null },
   canvas:    { title: 'Dashboard - Canvas',              favicon: gFav('instructure.com') },
   gdrive:    { title: 'My Drive - Google Drive',         favicon: gFav('drive.google.com') },
   canva:     { title: 'Home - Canva',                    favicon: gFav('canva.com') },
@@ -82,13 +79,13 @@ const DEFAULT_SETTINGS = {
 
 function loadSettings() {
   try {
-    const raw = localStorage.getItem('axis-settings');
+    const raw = localStorage.getItem('bardo-settings');
     return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS };
   } catch (_) { return { ...DEFAULT_SETTINGS }; }
 }
 
 function saveSettings() {
-  try { localStorage.setItem('axis-settings', JSON.stringify(settings)); } catch (_) {}
+  try { localStorage.setItem('bardo-settings', JSON.stringify(settings)); } catch (_) {}
 }
 
 let settings = loadSettings();
@@ -251,7 +248,7 @@ function toUrl(s) {
 let pendingUrl = null;
 
 function navigate(url) {
-  const ctrl = window.__axisCtrl;
+  const ctrl = window.__bardoCtrl;
   if (!ctrl) {
     pendingUrl = url;
     setStatus('Loading, will navigate when ready…');
@@ -437,17 +434,17 @@ async function initEngine(attempt = 1) {
       await initScramjet(attempt);
     }
   } catch (e) {
-    console.error(`[axis] init failed (attempt ${attempt}):`, e);
+    console.error(`[bardo] init failed (attempt ${attempt}):`, e);
     if (attempt < 3) {
       const delay = attempt * 2000;
       setStatus(`⚠ Error, retrying in ${delay / 1000}s…`, true);
       setTimeout(() => initEngine(attempt + 1), delay);
-    } else if (!sessionStorage.getItem('axis-sw-fix-attempted')) {
-      sessionStorage.setItem('axis-sw-fix-attempted', '1');
+    } else if (!sessionStorage.getItem('bardo-sw-fix-attempted')) {
+      sessionStorage.setItem('bardo-sw-fix-attempted', '1');
       setStatus('Refreshing…');
       await forceReload();
     } else {
-      sessionStorage.removeItem('axis-sw-fix-attempted');
+      sessionStorage.removeItem('bardo-sw-fix-attempted');
       setStatus('⚠ ' + e.message, true);
     }
   }
@@ -491,8 +488,8 @@ async function initScramjet(attempt = 1) {
     }
   }
 
-  window.__axisCtrl = ctrl;
-  sessionStorage.removeItem('axis-sw-fix-attempted');
+  window.__bardoCtrl = ctrl;
+  sessionStorage.removeItem('bardo-sw-fix-attempted');
   setStatus('');
 
   if (pendingUrl) {
@@ -518,14 +515,14 @@ async function initScramjet2(attempt = 1) {
 
   // v2 uses ScramjetFrame for per-tab navigation instead of a shared controller.
   // Provide a controller-compatible shim so navigate() works unchanged.
-  window.__axisCtrl = {
+  window.__bardoCtrl = {
     _prefix: SVC_PREFIX_V2,
     createFrame(iframe) {
-      return new AxisScramjet2Frame(iframe, SVC_PREFIX_V2);
+      return new BardoScramjet2Frame(iframe, SVC_PREFIX_V2);
     },
   };
 
-  sessionStorage.removeItem('axis-sw-fix-attempted');
+  sessionStorage.removeItem('bardo-sw-fix-attempted');
   setStatus('');
 
   if (pendingUrl) {
@@ -557,14 +554,14 @@ async function initUV(attempt = 1) {
   await setupTransport();
   setStatus('Starting Ultraviolet…');
 
-  window.__axisCtrl = {
+  window.__bardoCtrl = {
     _prefix: SVC_PREFIX_UV,
     createFrame(iframe) {
-      return new AxisUVFrame(iframe);
+      return new BardoUVFrame(iframe);
     },
   };
 
-  sessionStorage.removeItem('axis-sw-fix-attempted');
+  sessionStorage.removeItem('bardo-sw-fix-attempted');
   setStatus('');
 
   if (pendingUrl) {
@@ -585,7 +582,7 @@ function loadScript(src) {
 }
 
 // Frame shim for Scramjet v2 — mirrors the ScramjetFrame API
-class AxisScramjet2Frame {
+class BardoScramjet2Frame {
   constructor(iframe, prefix) {
     this._iframe = iframe;
     this._prefix = prefix;
@@ -618,7 +615,7 @@ class AxisScramjet2Frame {
 }
 
 // Frame shim for Ultraviolet
-class AxisUVFrame {
+class BardoUVFrame {
   constructor(iframe) {
     this._iframe = iframe;
     this._listeners = {};
@@ -886,7 +883,7 @@ function applyTabCloak() {
   const cloak = TAB_CLOAKS[settings.tabCloak] || TAB_CLOAKS.none;
   document.title = cloak.title;
   const fav = $('favicon');
-  if (fav) fav.href = cloak.favicon || AXIS_FAVICON;
+  if (fav) fav.href = cloak.favicon || BARDO_FAVICON;
 }
 
 function applyBookmarksBar() {
@@ -928,7 +925,7 @@ function handleAboutBlankResult() {
   if (!settings.aboutBlankMode) return;
   if (window !== window.top) return; // Already inside an ab iframe
 
-  if (window.__axisAbLaunched) {
+  if (window.__bardoAbLaunched) {
     // Stealth tab opened successfully — show "close this tab" message
     document.body.innerHTML =
       `<div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;` +
@@ -936,7 +933,7 @@ function handleAboutBlankResult() {
       `<p style="font-size:18px;opacity:0.6">Stealth tab opened.</p>` +
       `<p style="font-size:13px;color:#555">You can close this tab.</p>` +
       `</div>`;
-  } else if (window.__axisAbBlocked) {
+  } else if (window.__bardoAbBlocked) {
     // Popup was blocked — show the manual fallback button
     btnStealthLaunch.style.display = 'flex';
   }

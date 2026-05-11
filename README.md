@@ -1,8 +1,8 @@
-# Axis
+# Bardo
 
 A sleek pseudo web browser built by **Liminal**.
 
-Axis is an Express-powered proxy browser that uses Scramjet and Wisp to route web traffic through a service worker-powered browsing layer. It includes tabs, bookmarks, theme options, tab cloaking, an about:blank launcher, and a panic key for quickly redirecting the session.
+Bardo is an Express-powered proxy browser that uses Scramjet and Wisp to route web traffic through a service worker-powered browsing layer. It includes tabs, bookmarks, theme options, tab cloaking, an about:blank launcher, and a panic key for quickly redirecting the session.
 
 ## Features
 

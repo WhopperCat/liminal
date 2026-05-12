@@ -26,14 +26,6 @@ app.use('/scramjet2/', allowSW, noCache, express.static(
   path.join(__dirname, 'node_modules/scramjet-v2/dist')
 ));
 
-// Ultraviolet — custom config must come before the static route
-app.get('/uv/uv.config.js', noCache, (req, res) =>
-  res.sendFile(path.join(__dirname, 'public/uv.config.js'))
-);
-app.use('/uv/', noCache, express.static(
-  path.join(__dirname, 'node_modules/@titaniumnetwork-dev/ultraviolet/dist')
-));
-
 // bare-mux
 app.use('/baremux/', noCache, express.static(
   path.join(__dirname, 'node_modules/@mercuryworkshop/bare-mux/dist')

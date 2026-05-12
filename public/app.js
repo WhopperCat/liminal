@@ -414,15 +414,13 @@ async function registerSW(swPath, scope) {
 async function setupTransport() {
   setStatus('Setting up transport…');
   const localWisp = `wss://${location.host}/wisp/`;
-  const [localOk, publicOk] = await Promise.all([
-    checkWisp(localWisp),
-    checkWisp(PUBLIC_WISP),
-  ]);
+  const localPromise  = checkWisp(localWisp);
+  const publicPromise = checkWisp(PUBLIC_WISP);
 
   let wispUrl;
-  if (localOk) {
+  if (await localPromise) {
     wispUrl = localWisp;
-  } else if (publicOk) {
+  } else if (await publicPromise) {
     wispUrl = PUBLIC_WISP;
   } else {
     throw new Error('No Wisp server reachable — check your connection.');

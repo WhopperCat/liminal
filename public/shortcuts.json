@@ -4,27 +4,27 @@
   },
   {
     "label": "DuckDuckGo",
-    "url": "https://duckduckgo.com"
+    "url": "https://duckduckgo.com",
     "icon": "preset:search"
   },
   {
     "label": "YouTube",
-    "url": "https://www.infaredbrowser.dynv6.net"
+    "url": "https://www.infaredbrowser.dynv6.net",
     "icon": "preset:video"
   },
   {
     "label": "GitHub",
-    "url": "https://github.com"
+    "url": "https://github.com",
     "icon": "preset:star"
   },
   {
     "label": "Tiktok",
-    "url": "https://tiktok.com"
+    "url": "https://tiktok.com",
     "icon": "preset:video"
   },
-    {
+  {
     "label": "Games",
-    "url": "https://crazygames.com"
+    "url": "https://crazygames.com",
     "icon": "preset:news"
-  },
+  }
 ]

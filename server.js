@@ -47,9 +47,13 @@ app.get('/libcurl/index.mjs', noCache, (req, res) => {
   ));
 });
 
-// service worker — must never be cached so updates propagate immediately
+// service workers — must never be cached so updates propagate immediately
 app.get('/sw.js', allowSW, noCache, (req, res) =>
   res.sendFile(path.join(__dirname, 'public/sw.js'))
+);
+
+app.get('/sw-scramjet2.js', allowSW, noCache, (req, res) =>
+  res.sendFile(path.join(__dirname, 'public/sw-scramjet2.js'))
 );
 
 // static assets

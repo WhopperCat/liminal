@@ -373,11 +373,11 @@ searchForm.addEventListener('submit', e => {
 });
 
 // ── WISP check ────────────────────────────────────────────────────
-function checkWisp(url) {
+function checkWisp(url, timeoutMs = 8000) {
   return new Promise(resolve => {
     const ws = new WebSocket(url);
     const done = ok => { clearTimeout(t); try { ws.close(); } catch (_) {} resolve(ok); };
-    const t = setTimeout(() => done(false), 5000);
+    const t = setTimeout(() => done(false), timeoutMs);
     ws.addEventListener('open',  () => done(true));
     ws.addEventListener('error', () => done(false));
   });
@@ -414,7 +414,20 @@ async function registerSW(swPath, scope) {
 async function setupTransport() {
   setStatus('Setting up transport…');
   const localWisp = `wss://${location.host}/wisp/`;
-  const wispUrl   = (await checkWisp(localWisp)) ? localWisp : PUBLIC_WISP;
+  const [localOk, publicOk] = await Promise.all([
+    checkWisp(localWisp),
+    checkWisp(PUBLIC_WISP),
+  ]);
+
+  let wispUrl;
+  if (localOk) {
+    wispUrl = localWisp;
+  } else if (publicOk) {
+    wispUrl = PUBLIC_WISP;
+  } else {
+    throw new Error('No Wisp server reachable — check your connection.');
+  }
+
   await conn.setTransport('/epoxy/index.mjs', [{ wisp: wispUrl }]);
   return wispUrl;
 }

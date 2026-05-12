@@ -32,7 +32,6 @@ const conn = new BareMux.BareMuxConnection('/baremux/worker.js');
 const PUBLIC_WISP = 'wss://wisp.mercurywork.shop/wisp/';
 const SVC_PREFIX    = '/scramjet/service/';
 const SVC_PREFIX_V2 = '/scramjet2/service/';
-const SVC_PREFIX_UV = '/uv/service/';
 
 const BARDO_FAVICON = "data:image/svg+xml," + encodeURIComponent(
   `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'>` +
@@ -388,8 +387,7 @@ function checkWisp(url) {
 
 function activeSvcPrefix() {
   const engine = settings.engine || 'scramjet';
-  if (engine === 'scramjet2')   return SVC_PREFIX_V2;
-  if (engine === 'ultraviolet') return SVC_PREFIX_UV;
+  if (engine === 'scramjet2') return SVC_PREFIX_V2;
   return SVC_PREFIX;
 }
 
@@ -428,9 +426,7 @@ async function initEngine(attempt = 1) {
   }
   const engine = settings.engine || 'scramjet';
   try {
-    if (engine === 'ultraviolet') {
-      await initUV(attempt);
-    } else if (engine === 'scramjet2') {
+    if (engine === 'scramjet2') {
       await initScramjet2(attempt);
     } else {
       await initScramjet(attempt);
@@ -534,45 +530,6 @@ async function initScramjet2(attempt = 1) {
   }
 }
 
-async function initUV(attempt = 1) {
-  setStatus('Loading Ultraviolet…');
-
-  // Lazy-load UV bundle and config onto the main page for URL encoding
-  if (!window.__uv$config) {
-    await loadScript('/uv/uv.bundle.js');
-    await loadScript('/uv/uv.config.js');
-  }
-
-  setStatus('Registering service worker (Ultraviolet)…');
-  const reg = await registerSW('/sw-uv.js', SVC_PREFIX_UV);
-
-  if (attempt === 1) {
-    setInterval(() => reg.update(), 30 * 60 * 1000);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') reg.update();
-    });
-  }
-
-  await setupTransport();
-  setStatus('Starting Ultraviolet…');
-
-  window.__bardoCtrl = {
-    _prefix: SVC_PREFIX_UV,
-    createFrame(iframe) {
-      return new BardoUVFrame(iframe);
-    },
-  };
-
-  sessionStorage.removeItem('bardo-sw-fix-attempted');
-  setStatus('');
-
-  if (pendingUrl) {
-    const url = pendingUrl;
-    pendingUrl = null;
-    navigate(url);
-  }
-}
-
 function loadScript(src) {
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
@@ -607,37 +564,6 @@ class BardoScramjet2Frame {
     // directly encoding via encodeURIComponent as a best-effort approach.
     const encoded = encodeURIComponent(url);
     this._iframe.src = this._prefix + encoded;
-  }
-  reload() { this._iframe.contentWindow?.location.reload(); }
-  back()    { this._iframe.contentWindow?.history.back(); }
-  forward() { this._iframe.contentWindow?.history.forward(); }
-  addEventListener(type, fn) {
-    (this._listeners[type] ??= []).push(fn);
-  }
-}
-
-// Frame shim for Ultraviolet
-class BardoUVFrame {
-  constructor(iframe) {
-    this._iframe = iframe;
-    this._listeners = {};
-    iframe.addEventListener('load', () => this._onLoad());
-  }
-  _onLoad() {
-    try {
-      const href = this._iframe.contentWindow?.location.href;
-      if (href && window.__uv$config && href.includes(SVC_PREFIX_UV)) {
-        const encoded = href.split(SVC_PREFIX_UV)[1];
-        if (encoded) {
-          const decoded = window.__uv$config.decodeUrl(encoded.split('?')[0]);
-          this._listeners.urlchange?.forEach(fn => fn({ url: decoded }));
-        }
-      }
-    } catch (_) {}
-  }
-  go(url) {
-    if (!window.__uv$config) { this._iframe.src = url; return; }
-    this._iframe.src = SVC_PREFIX_UV + window.__uv$config.encodeUrl(url);
   }
   reload() { this._iframe.contentWindow?.location.reload(); }
   back()    { this._iframe.contentWindow?.history.back(); }
